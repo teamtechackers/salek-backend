@@ -10,7 +10,7 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
       ecmaVersion: 2021,
-      sourceType: 'script',
+      sourceType: 'module',
     },
     rules: {
       // Naming
@@ -56,6 +56,13 @@ export default defineConfig([
   // Allow console in the logger only
   {
     files: ['src/config/logger.js'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  // ✅ Allow console in pre-commit script
+  {
+    files: ['scripts/pre-commit.js'],
     rules: {
       'no-console': 'off',
     },

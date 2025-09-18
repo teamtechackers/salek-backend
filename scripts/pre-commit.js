@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 console.log(' Running pre-commit custom checks...');
 
@@ -7,7 +7,7 @@ console.log(' Running pre-commit custom checks...');
 function checkTODOs() {
   const files = getJsFiles('./src');
   let todoCount = 0;
-  
+
   files.forEach(file => {
     const content = fs.readFileSync(file, 'utf8');
     const matches = content.match(/TODO|FIXME/g);
@@ -16,9 +16,11 @@ function checkTODOs() {
       console.warn(`⚠️ TODO/FIXME found in ${file}`);
     }
   });
-  
+
   if (todoCount > 0) {
-    console.error(`❌ Found ${todoCount} TODO/FIXME comments! Please address before committing.`);
+    console.error(
+      `❌ Found ${todoCount} TODO/FIXME comments! Please address before committing.`
+    );
     process.exit(1);
   }
 }
@@ -27,13 +29,13 @@ function checkTODOs() {
 function checkConsoleLogs() {
   const files = getJsFiles('./src');
   let logCount = 0;
-  
+
   files.forEach(file => {
     // Skip the logger file itself
     if (file.includes('logger.js')) {
       return;
     }
-    
+
     const content = fs.readFileSync(file, 'utf8');
     const matches = content.match(/console\.log/g);
     if (matches) {
@@ -41,9 +43,11 @@ function checkConsoleLogs() {
       console.warn(`⚠️ console.log found in ${file}`);
     }
   });
-  
+
   if (logCount > 0) {
-    console.error(`❌ Found ${logCount} console.log statements! Please remove or replace with logger.`);
+    console.error(
+      `❌ Found ${logCount} console.log statements! Please remove or replace with logger.`
+    );
     process.exit(1);
   }
 }
@@ -52,17 +56,23 @@ function checkConsoleLogs() {
 function checkFileNaming() {
   const files = getJsFiles('./src');
   const invalidFiles = [];
-  
+
   files.forEach(file => {
     const fileName = path.basename(file, '.js');
     // Allow snake_case, camelCase, and dot notation (common in Node.js)
-    if (!/^[a-z][a-z0-9]*(_[a-z0-9]+)*$|^[a-z][a-zA-Z0-9]*$|^[a-z][a-z0-9]*\.[a-z][a-z0-9]*$/.test(fileName)) {
+    if (
+      !/^[a-z][a-z0-9]*(_[a-z0-9]+)*$|^[a-z][a-zA-Z0-9]*$|^[a-z][a-z0-9]*\.[a-z][a-z0-9]*$/.test(
+        fileName
+      )
+    ) {
       invalidFiles.push(file);
     }
   });
-  
+
   if (invalidFiles.length > 0) {
-    console.error(`❌ Invalid file naming found! Files should use snake_case, camelCase, or dot notation:`);
+    console.error(
+      '❌ Invalid file naming found! Files should use snake_case, camelCase, or dot notation:'
+    );
     invalidFiles.forEach(file => console.error(`   ${file}`));
     process.exit(1);
   }
@@ -71,9 +81,13 @@ function checkFileNaming() {
 // In scripts/pre-commit.js, replace the hardcoded strings check with:
 function checkHardcodedStrings() {
   const apiFiles = getJsFiles('./src').filter(file => {
-    const isController = file.includes(`${path.sep}api${path.sep}controllers${path.sep}`);
+    const isController = file.includes(
+      `${path.sep}api${path.sep}controllers${path.sep}`
+    );
     const isRoute = file.includes(`${path.sep}api${path.sep}routes${path.sep}`);
-    const inConstants = file.includes(`${path.sep}core${path.sep}constants${path.sep}`);
+    const inConstants = file.includes(
+      `${path.sep}core${path.sep}constants${path.sep}`
+    );
     const isLogger = file.endsWith(`${path.sep}logger.js`);
     const isTest = file.includes(`${path.sep}tests${path.sep}`);
     return (isController || isRoute) && !inConstants && !isLogger && !isTest;
@@ -111,7 +125,9 @@ function checkHardcodedStrings() {
   });
 
   if (total > 0) {
-    console.error(`❌ Found ${total} potential hardcoded strings! Consider using constants.`);
+    console.error(
+      `❌ Found ${total} potential hardcoded strings! Consider using constants.`
+    );
     process.exit(1);
   }
 }
@@ -121,33 +137,35 @@ function checkArchitecture() {
   const srcDir = './src';
   const requiredDirs = ['api', 'core', 'config', 'middleware', 'utils'];
   const missingDirs = [];
-  
+
   requiredDirs.forEach(dir => {
     if (!fs.existsSync(path.join(srcDir, dir))) {
       missingDirs.push(dir);
     }
   });
-  
+
   if (missingDirs.length > 0) {
-    console.error(`❌ Missing required architecture directories: ${missingDirs.join(', ')}`);
+    console.error(
+      `❌ Missing required architecture directories: ${missingDirs.join(', ')}`
+    );
     process.exit(1);
   }
 }
 
 // Helper to recursively get JS files
-function getJsFiles(dir, files_ = []) {
-  if (!fs.existsSync(dir)) return files_;
-  
+function getJsFiles(dir, collectedFiles = []) {
+  if (!fs.existsSync(dir)) return collectedFiles;
+
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {
-      getJsFiles(fullPath, files_);
+      getJsFiles(fullPath, collectedFiles);
     } else if (file.endsWith('.js')) {
-      files_.push(fullPath);
+      collectedFiles.push(fullPath);
     }
   }
-  return files_;
+  return collectedFiles;
 }
 
 try {

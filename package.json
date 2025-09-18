@@ -1,11 +1,17 @@
 {
   "name": "salak-backend",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "pre-commit": "node scripts/pre-commit.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "check-format": "prettier --check ."
   },
   "keywords": [],
   "author": "",
@@ -29,5 +35,9 @@
   },
   "directories": {
     "test": "tests"
+  },
+  "lint-staged": {
+    "src/**/*.js": ["eslint --fix", "prettier --write"],
+    "scripts/**/*.js": ["eslint --fix", "prettier --write"]
   }
 }

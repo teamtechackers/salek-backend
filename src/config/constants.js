@@ -1,14 +1,5 @@
-// Dummy data
-
-export const STATUS = {
-  ACTIVE: 1,
-  INACTIVE: 0,
+// src/core/constants/appConstants.js
+export const TEST_VARIABLES = {
+  TEST_STATEMENT: 'Running test_controller',
+  TEST_VARIABLE: 'value',
 };
-
-export const USER_ROLES = {
-  ADMIN: 'admin',
-  USER: 'user',
-};
-
-
-// Add all Constants in this file

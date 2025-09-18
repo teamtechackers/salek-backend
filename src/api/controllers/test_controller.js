@@ -1,8 +1,10 @@
-// ❌ BAD CODE ON PURPOSE to trigger checks
-function test_controller( ) {
-console.log("debug here") // should fail: console.log not allowed
-const BAD_variable = "test"; // should fail: wrong naming convention
-return BAD_variable
+import TEST_VARIABLES from '../../core/constants/appConstants.js';
+import logger from '../../config/logger.js';
+
+function testController() {
+  logger.info(TEST_VARIABLES.TEST_STATEMENT); // console allowed in logger only
+  const testVariable = TEST_VARIABLES.TEST_VARIABLE; // use constant instead of hardcoded string
+  return testVariable;
 }
 
-module.exports=test_controller
+export default testController;
