@@ -2,7 +2,8 @@ import { getAllVaccines, getVaccinesByType, getVaccinesByAge } from '../../servi
 import { 
   getUserVaccines, 
   getUserVaccinesByStatus, 
-  updateVaccineStatus
+  updateVaccineStatus,
+  addVaccineRecord
 } from '../../services/user_vaccines_service.js';
 import { 
   addVaccineReminder,
@@ -61,7 +62,7 @@ export const getVaccinesList = async (req, res) => {
 
 export const getSpecificUserVaccineRecords = async (req, res) => {
   try {
-    const { user_id, status } = req.query;
+    const { user_id, status, exclude_completed } = req.query;
 
     if (!user_id) {
       return res.status(400).json({
@@ -107,7 +108,8 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       }
       result = await getUserVaccinesByStatus(actualUserId, status);
     } else {
-      result = await getUserVaccines(actualUserId);
+      const excludeCompletedFlag = exclude_completed === 'true';
+      result = await getUserVaccines(actualUserId, excludeCompletedFlag);
     }
 
     if (!result.success) {
@@ -698,6 +700,78 @@ export const getVaccineDoseSummaryAPI = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+};
+
+export const addRecord = async (req, res) => {
+  try {
+    const { 
+      user_vaccine_id, 
+      dose_number, 
+      completed_date, 
+      completed_time, 
+      city_id, 
+      notes 
+    } = req.body;
+
+    if (!user_vaccine_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User vaccine ID is required'
+      });
+    }
+
+    if (!dose_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dose number is required'
+      });
+    }
+
+    if (!completed_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Completed date is required'
+      });
+    }
+
+    const imageName = req.file ? req.file.filename : null;
+
+    const result = await addVaccineRecord(
+      user_vaccine_id,
+      dose_number,
+      completed_date,
+      completed_time || null,
+      city_id || null,
+      imageName,
+      notes || null
+    );
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to add vaccine record'
+      });
+    }
+
+    logger.info(`Vaccine record added: user_vaccine_id ${user_vaccine_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message || 'Vaccine record added successfully',
+      data: {
+        image_name: imageName,
+        image_url: imageName ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${imageName}` : null
+      }
+    });
+
+  } catch (error) {
+    logger.error('Add vaccine record error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 };

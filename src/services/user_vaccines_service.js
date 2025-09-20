@@ -175,7 +175,7 @@ export const generateUserVaccines = async (userId) => {
   }
 };
 
-export const getUserVaccines = async (userId) => {
+export const getUserVaccines = async (userId, excludeCompleted = false) => {
   try {
     await updateAllVaccineStatuses(userId);
     
@@ -183,6 +183,11 @@ export const getUserVaccines = async (userId) => {
     const twoYearsFromNow = new Date();
     twoYearsFromNow.setFullYear(currentDate.getFullYear() + 2);
     const maxDate = twoYearsFromNow.toISOString().split('T')[0];
+    
+    let statusFilter = '';
+    if (excludeCompleted) {
+      statusFilter = ` AND uv.${USER_VACCINES_FIELDS.STATUS} != 'completed'`;
+    }
     
     const sql = `
       SELECT 
@@ -200,7 +205,7 @@ export const getUserVaccines = async (userId) => {
       LEFT JOIN ${CITIES_TABLE} c ON uv.${USER_VACCINES_FIELDS.CITY_ID} = c.${CITIES_FIELDS.CITY_ID}
       WHERE uv.${USER_VACCINES_FIELDS.USER_ID} = ? 
       AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
-      AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?
+      AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}
       ORDER BY uv.${USER_VACCINES_FIELDS.VACCINE_ID}, uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} ASC
     `;
     
@@ -241,6 +246,10 @@ export const getUserVaccines = async (userId) => {
         status: reminder.status
       }));
 
+      const imageUrl = vaccine.image_url ? 
+        `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${vaccine.image_url}` : 
+        null;
+
       formattedVaccines.push({
         user_vaccine_id: vaccine.user_vaccine_id,
         vaccine_id: vaccine.vaccine_id,
@@ -250,7 +259,7 @@ export const getUserVaccines = async (userId) => {
         dose_number: vaccine.dose_number,
         city_id: vaccine.city_id,
         city_name: vaccine.city_name,
-        image_url: vaccine.image_url,
+        image_url: imageUrl,
         notes: vaccine.notes,
         reminders: formattedReminders
       });
@@ -356,6 +365,44 @@ export const updateVaccineStatus = async (userVaccineId, status, completedDate =
     return { success: true, message: 'Vaccine status updated successfully' };
   } catch (error) {
     logger.error('Update vaccine status error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const addVaccineRecord = async (userVaccineId, doseNumber, completedDate, completedTime, cityId, imageName, notes) => {
+  try {
+    const sql = `
+      UPDATE ${USER_VACCINES_TABLE}
+      SET 
+        ${USER_VACCINES_FIELDS.STATUS} = 'completed',
+        ${USER_VACCINES_FIELDS.COMPLETED_DATE} = ?,
+        ${USER_VACCINES_FIELDS.DOSE_NUMBER} = ?,
+        ${USER_VACCINES_FIELDS.CITY_ID} = ?,
+        ${USER_VACCINES_FIELDS.IMAGE_URL} = ?,
+        ${USER_VACCINES_FIELDS.NOTES} = ?,
+        ${USER_VACCINES_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
+      WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?
+      AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+    `;
+    
+    const completedDateTime = completedTime ? `${completedDate} ${completedTime}` : completedDate;
+    
+    const result = await query(sql, [completedDateTime, doseNumber, cityId, imageName, notes, userVaccineId]);
+    
+    if (result.affectedRows === 0) {
+      return { success: false, error: 'User vaccine record not found' };
+    }
+    
+    const getUserSql = `SELECT ${USER_VACCINES_FIELDS.USER_ID} FROM ${USER_VACCINES_TABLE} WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?`;
+    const userResult = await query(getUserSql, [userVaccineId]);
+    
+    if (userResult.length > 0) {
+      await updateAllVaccineStatuses(userResult[0].user_id);
+    }
+    
+    return { success: true, message: 'Vaccine record added successfully' };
+  } catch (error) {
+    logger.error('Add vaccine record error:', error);
     return { success: false, error: error.message };
   }
 };

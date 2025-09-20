@@ -10,9 +10,11 @@ import {
   deleteReminderAPI,
   markVaccinesAsTaken,
   updateVaccineStatusesAPI,
-  getVaccineDoseSummaryAPI
+  getVaccineDoseSummaryAPI,
+  addRecord
 } from '../controllers/vaccines_controller.js';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
+import { uploadVaccineImage } from '../../middleware/upload_middleware.js';
 
 const router = express.Router();
 
@@ -29,5 +31,6 @@ router.delete('/delete-reminder', deleteReminderAPI);
 router.put('/mark-vaccines-taken', markVaccinesAsTaken);
 router.post('/update-vaccine-statuses', updateVaccineStatusesAPI);
 router.get('/get-dose-summary', getVaccineDoseSummaryAPI);
+router.post('/add-record', uploadVaccineImage, addRecord);
 
 export default router;
