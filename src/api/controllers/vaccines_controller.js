@@ -1,11 +1,16 @@
 import { getAllVaccines, getVaccinesByType, getVaccinesByAge } from '../../services/vaccines_service.js';
 import { 
-  addUserVaccine, 
   getUserVaccines, 
   getUserVaccinesByStatus, 
-  updateUserVaccineStatus,
-  addMultipleUserVaccines 
+  updateVaccineStatus
 } from '../../services/user_vaccines_service.js';
+import { 
+  addVaccineReminder,
+  getVaccineReminders,
+  getUserAllReminders,
+  updateVaccineReminder,
+  deleteVaccineReminder
+} from '../../services/vaccine_reminders_service.js';
 import { getUserById } from '../../services/user_service.js';
 import { encryptUserId, decryptUserId } from '../../services/encryption_service.js';
 import { VACCINE_STATUS } from '../../models/user_vaccines_model.js';
@@ -268,6 +273,428 @@ export const updateUserVaccineRecord = async (req, res) => {
 
   } catch (error) {
     logger.error('Update user vaccine error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const addReminderAPI = async (req, res) => {
+  try {
+    const { user_vaccine_id, title, message, date, time, frequency } = req.body;
+
+    if (!user_vaccine_id || !title || !date) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_vaccine_id, title, and date are required'
+      });
+    }
+
+    const reminderData = { title, message, date, time, frequency };
+    const result = await addVaccineReminder(user_vaccine_id, reminderData);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    logger.info(`Vaccine reminder added: user_vaccine_id ${user_vaccine_id}, reminder_id ${result.reminder_id}`);
+
+    return res.status(201).json({
+      success: true,
+      message: result.message,
+      data: {
+        reminder_id: result.reminder_id,
+        user_vaccine_id,
+        title,
+        message: message || null,
+        date,
+        time: time || '09:00',
+        frequency: frequency || 'once'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Add reminder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const updateReminderAPI = async (req, res) => {
+  try {
+    const { reminder_id, title, message, date, time, frequency, status } = req.body;
+
+    if (!reminder_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'reminder_id is required'
+      });
+    }
+
+    const reminderData = { title, message, date, time, frequency, status };
+    const result = await updateVaccineReminder(reminder_id, reminderData);
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    logger.info(`Vaccine reminder updated: reminder_id ${reminder_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        reminder_id,
+        title: title || null,
+        message: message || null,
+        date: date || null,
+        time: time || '09:00',
+        frequency: frequency || 'once',
+        status: status || 'active'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Update reminder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const getRemindersAPI = async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Decrypt user ID if needed
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const result = await getUserAllReminders(actualUserId);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    logger.info(`User reminders fetched: User ${actualUserId}, Count: ${result.reminders.length}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User reminders fetched successfully',
+      data: {
+        userId: actualUserId,
+        encryptedUserId: encryptUserId(actualUserId),
+        reminders: result.reminders,
+        count: result.reminders.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get reminders error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const deleteReminderAPI = async (req, res) => {
+  try {
+    const { reminder_id } = req.body;
+
+    if (!reminder_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'reminder_id is required'
+      });
+    }
+
+    const result = await deleteVaccineReminder(reminder_id);
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    logger.info(`Vaccine reminder deleted: reminder_id ${reminder_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        reminder_id,
+        status: 'cancelled'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Delete reminder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const markVaccinesAsTaken = async (req, res) => {
+  try {
+    const { user_id, user_vaccine_ids, completed_date, city_id, image_url, notes } = req.body;
+
+    if (!user_id || !user_vaccine_ids || !Array.isArray(user_vaccine_ids) || user_vaccine_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id and user_vaccine_ids array are required'
+      });
+    }
+
+    const actualUserId = decryptUserId(user_id);
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Verify user exists
+    const userResult = await getUserById(actualUserId);
+    if (!userResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const updatedVaccines = [];
+    const failedUpdates = [];
+
+    // Update each vaccine status
+    for (const userVaccineId of user_vaccine_ids) {
+      try {
+        const result = await updateVaccineStatus(
+          userVaccineId, 
+          VACCINE_STATUS.COMPLETED,
+          completed_date || null,
+          city_id || null,
+          image_url || null,
+          notes || null
+        );
+
+        if (result.success) {
+          updatedVaccines.push({
+            user_vaccine_id: userVaccineId,
+            status: 'completed',
+            completed_date: completed_date || new Date().toISOString().split('T')[0]
+          });
+        } else {
+          failedUpdates.push({
+            user_vaccine_id: userVaccineId,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        failedUpdates.push({
+          user_vaccine_id: userVaccineId,
+          error: error.message
+        });
+      }
+    }
+
+    logger.info(`Bulk vaccine status update: User ${actualUserId}, Updated: ${updatedVaccines.length}, Failed: ${failedUpdates.length}`);
+
+    return res.status(200).json({
+      success: true,
+      message: `${updatedVaccines.length} vaccines marked as taken successfully`,
+      data: {
+        user_id: encryptUserId(actualUserId),
+        updated_vaccines: updatedVaccines,
+        failed_updates: failedUpdates,
+        summary: {
+          total_requested: user_vaccine_ids.length,
+          successfully_updated: updatedVaccines.length,
+          failed: failedUpdates.length
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Mark vaccines as taken error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const updateVaccineStatusesAPI = async (req, res) => {
+  try {
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required'
+      });
+    }
+
+    const actualUserId = decryptUserId(user_id);
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Import updateAllVaccineStatuses
+    const { updateAllVaccineStatuses } = await import('../../services/user_vaccines_service.js');
+    const result = await updateAllVaccineStatuses(actualUserId);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    logger.info(`Vaccine statuses updated for user ${actualUserId}: ${result.updated_count} vaccines`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine statuses updated successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        updated_count: result.updated_count
+      }
+    });
+
+  } catch (error) {
+    logger.error('Update vaccine statuses error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const getVaccineDoseSummaryAPI = async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required'
+      });
+    }
+
+    const actualUserId = decryptUserId(user_id);
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Get vaccine dose summary
+    const summarySql = `
+      SELECT 
+        v.vaccine_id,
+        v.name as vaccine_name,
+        v.total_doses,
+        v.frequency,
+        COUNT(*) as total_scheduled_doses,
+        COUNT(CASE WHEN uv.status = 'completed' THEN 1 END) as completed_doses,
+        COUNT(CASE WHEN uv.status = 'overdue' THEN 1 END) as overdue_doses,
+        COUNT(CASE WHEN uv.status = 'due_soon' THEN 1 END) as due_soon_doses,
+        COUNT(CASE WHEN uv.status = 'upcoming' THEN 1 END) as upcoming_doses,
+        MIN(CASE WHEN uv.status != 'completed' THEN uv.scheduled_date END) as next_dose_date,
+        MIN(CASE WHEN uv.status != 'completed' THEN uv.user_vaccine_id END) as next_dose_id
+      FROM vaccines v
+      LEFT JOIN user_vaccines uv ON v.vaccine_id = uv.vaccine_id 
+        AND uv.user_id = ? 
+        AND uv.is_active = true
+      WHERE uv.vaccine_id IS NOT NULL
+      GROUP BY v.vaccine_id, v.name, v.total_doses, v.frequency
+      ORDER BY v.vaccine_id
+    `;
+
+    const summary = await query(summarySql, [actualUserId]);
+
+    const formattedSummary = summary.map(vaccine => ({
+      vaccine_id: vaccine.vaccine_id,
+      vaccine_name: vaccine.vaccine_name,
+      total_doses_required: vaccine.total_doses,
+      frequency: vaccine.frequency,
+      dose_progress: {
+        completed: vaccine.completed_doses,
+        overdue: vaccine.overdue_doses,
+        due_soon: vaccine.due_soon_doses,
+        upcoming: vaccine.upcoming_doses,
+        total_scheduled: vaccine.total_scheduled_doses
+      },
+      completion_status: {
+        is_complete: vaccine.completed_doses >= (vaccine.total_doses || 1),
+        completion_percentage: Math.round((vaccine.completed_doses / (vaccine.total_doses || 1)) * 100),
+        remaining_doses: Math.max(0, (vaccine.total_doses || 1) - vaccine.completed_doses)
+      },
+      next_dose: vaccine.next_dose_date ? {
+        user_vaccine_id: vaccine.next_dose_id,
+        scheduled_date: vaccine.next_dose_date,
+        dose_number: vaccine.completed_doses + 1
+      } : null
+    }));
+
+    logger.info(`Vaccine dose summary fetched for user ${actualUserId}: ${summary.length} vaccines`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine dose summary fetched successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        vaccine_summary: formattedSummary,
+        total_vaccines: formattedSummary.length,
+        overall_progress: {
+          total_completed_doses: formattedSummary.reduce((sum, v) => sum + v.dose_progress.completed, 0),
+          total_required_doses: formattedSummary.reduce((sum, v) => sum + (v.total_doses_required || 1), 0),
+          total_overdue_doses: formattedSummary.reduce((sum, v) => sum + v.dose_progress.overdue, 0)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get vaccine dose summary error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error'

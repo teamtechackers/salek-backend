@@ -12,13 +12,13 @@ export const createUser = async (firebaseUid, phoneNumber) => {
     
     const newUserId = result.insertId;
     
-    // Auto-generate vaccine planner for new user
+    // Auto-generate user vaccines based on age and schedule
     try {
-      const { generateUserVaccinePlanner } = await import('./vaccine_planner_service.js');
-      await generateUserVaccinePlanner(newUserId);
-      logger.info(`Vaccine planner auto-generated for new user: ${newUserId}`);
-    } catch (plannerError) {
-      logger.warn(`Failed to generate planner for user ${newUserId}:`, plannerError.message);
+      const { generateUserVaccines } = await import('./user_vaccines_service.js');
+      await generateUserVaccines(newUserId);
+      logger.info(`User vaccines auto-generated for new user: ${newUserId}`);
+    } catch (vaccineError) {
+      logger.warn(`Failed to generate vaccines for user ${newUserId}:`, vaccineError.message);
     }
     
     return {
@@ -167,14 +167,14 @@ export const updateUserProfile = async (userId, profileData) => {
 
     await query(sql, params);
 
-    // If DOB is provided, auto-generate vaccine planner
+    // If DOB is provided, auto-generate user vaccines
     if (dob) {
       try {
-        const { generateUserVaccinePlanner } = await import('./vaccine_planner_service.js');
-        await generateUserVaccinePlanner(userId);
-        logger.info(`Vaccine planner auto-generated after profile update for user: ${userId}`);
-      } catch (plannerError) {
-        logger.warn(`Failed to generate planner for user ${userId}:`, plannerError.message);
+        const { generateUserVaccines } = await import('./user_vaccines_service.js');
+        await generateUserVaccines(userId);
+        logger.info(`User vaccines auto-generated after profile update for user: ${userId}`);
+      } catch (vaccineError) {
+        logger.warn(`Failed to generate vaccines for user ${userId}:`, vaccineError.message);
       }
     }
 

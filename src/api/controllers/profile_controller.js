@@ -1,12 +1,12 @@
 import { updateUserProfile, getUserProfile } from '../../services/user_service.js';
-import { encryptUserId } from '../../services/encryption_service.js';
+import { encryptUserId, decryptUserId } from '../../services/encryption_service.js';
 import { PROFILE_MESSAGES, GENDER_OPTIONS, MATERIAL_STATUS_OPTIONS } from '../../config/constants.js';
 import logger from '../../config/logger.js';
 
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
     const {
+      user_id,
       fullName,
       dob,
       gender,
@@ -19,6 +19,28 @@ export const updateProfile = async (req, res) => {
       areYouPregnant,
       pregnancyDetail
     } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Decrypt user ID if needed
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
 
     if (gender && !GENDER_OPTIONS.includes(gender)) {
       return res.status(400).json({
@@ -48,7 +70,7 @@ export const updateProfile = async (req, res) => {
       pregnancyDetail
     };
 
-    const result = await updateUserProfile(userId, profileData);
+    const result = await updateUserProfile(actualUserId, profileData);
 
     if (!result.success) {
       return res.status(500).json({
@@ -57,13 +79,13 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    logger.info(`Profile updated for user: ${userId}`);
+    logger.info(`Profile updated for user: ${actualUserId}`);
 
     return res.status(200).json({
       success: true,
       message: PROFILE_MESSAGES.PROFILE_UPDATED,
       data: {
-        encryptedUserId: encryptUserId(userId)
+        encryptedUserId: encryptUserId(actualUserId)
       }
     });
 
@@ -78,9 +100,31 @@ export const updateProfile = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const { user_id } = req.query;
 
-    const result = await getUserProfile(userId);
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Decrypt user ID if needed
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const result = await getUserProfile(actualUserId);
 
     if (!result.success) {
       return res.status(404).json({
@@ -97,7 +141,7 @@ export const getProfile = async (req, res) => {
       message: PROFILE_MESSAGES.PROFILE_FETCH_SUCCESS,
       data: {
         ...user,
-        encryptedUserId: encryptUserId(userId)
+        encryptedUserId: encryptUserId(actualUserId)
       }
     });
 
