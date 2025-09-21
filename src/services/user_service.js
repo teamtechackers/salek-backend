@@ -71,6 +71,33 @@ export const getUserByFirebaseUid = async (firebaseUid) => {
   }
 };
 
+export const getUserByPhoneNumber = async (phoneNumber) => {
+  try {
+    const sql = `
+      SELECT * FROM ${USER_TABLE} 
+      WHERE ${USER_FIELDS.PHONE_NUMBER} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
+    `;
+    const result = await query(sql, [phoneNumber]);
+    
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: 'User not found'
+      };
+    }
+
+    return {
+      success: true,
+      user: result[0]
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 export const getUserById = async (userId) => {
   try {
     const sql = `

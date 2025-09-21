@@ -1,6 +1,6 @@
 import express from 'express';
-import { sendOtpBackend, verifyOtpBackend } from '../../services/backend_otp_service.js';
-import { createUser, updateUserLastLogin } from '../../services/user_service.js';
+import { sendOtpWithFallback, verifyOtpWithFallback } from '../../services/twilio_otp_service.js';
+import { createUser, getUserByPhoneNumber, updateUserLastLogin } from '../../services/user_service.js';
 import { generateToken } from '../../services/jwt_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
 import { AUTH_MESSAGES } from '../../config/constants.js';
@@ -19,7 +19,7 @@ const sendOtp = async (req, res) => {
       });
     }
 
-    const result = await sendOtpBackend(phoneNumber);
+    const result = await sendOtpWithFallback(phoneNumber);
 
     if (!result.success) {
       return res.status(400).json({
@@ -34,7 +34,7 @@ const sendOtp = async (req, res) => {
       data: {
         sessionId: result.sessionId,
         phoneNumber: result.phoneNumber,
-        otpCode: result.otpCode
+        isTestNumber: result.isTestNumber || false
       }
     });
 
@@ -58,7 +58,8 @@ const verifyOtpAndLogin = async (req, res) => {
       });
     }
 
-    const otpResult = await verifyOtpBackend(sessionId, otpCode, phoneNumber);
+    // Verify OTP with Twilio
+    const otpResult = await verifyOtpWithFallback(sessionId, otpCode, phoneNumber);
 
     if (!otpResult.success) {
       return res.status(401).json({
@@ -67,32 +68,42 @@ const verifyOtpAndLogin = async (req, res) => {
       });
     }
 
-    const userResult = await createUser(otpResult.firebaseUid, otpResult.phoneNumber);
-
+    // Check if user exists
+    let userResult = await getUserByPhoneNumber(phoneNumber);
+    
     if (!userResult.success) {
-      return res.status(500).json({
-        success: false,
-        message: AUTH_MESSAGES.SERVER_ERROR
-      });
+      // Create new user with phone number
+      const createResult = await createUser(null, phoneNumber);
+      if (!createResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create user'
+        });
+      }
+      userResult = await getUserByPhoneNumber(phoneNumber);
     }
 
-    await updateUserLastLogin(userResult.userId || userResult.user.id);
+    const user = userResult.user;
+    await updateUserLastLogin(user.id);
 
-    const jwtToken = generateToken(userResult.userId || userResult.user.id);
+    const jwtToken = generateToken({ userId: user.id, phoneNumber: phoneNumber });
 
-    logger.info(`User logged in successfully: ${otpResult.firebaseUid}`);
+    logger.info(`User logged in successfully: ${phoneNumber}`);
 
-    const actualUserId = userResult.userId || userResult.user.id;
-    const encryptedUserId = encryptUserId(actualUserId);
+    const encryptedUserId = encryptUserId(user.id);
 
     return res.status(200).json({
       success: true,
-      message: AUTH_MESSAGES.LOGIN_SUCCESS,
+      message: 'Login successful',
       data: {
         userId: encryptedUserId,
-        firebaseUid: otpResult.firebaseUid,
         token: jwtToken,
-        phoneNumber: otpResult.phoneNumber
+        phoneNumber: phoneNumber,
+        user: {
+          phone_number: user.phone_number,
+          full_name: user.full_name,
+          is_profile_complete: !!(user.full_name && user.dob)
+        }
       }
     });
 
@@ -100,7 +111,7 @@ const verifyOtpAndLogin = async (req, res) => {
     logger.error('Verify OTP error:', error);
     return res.status(500).json({
       success: false,
-      message: AUTH_MESSAGES.SERVER_ERROR
+      message: 'Internal server error'
     });
   }
 };
