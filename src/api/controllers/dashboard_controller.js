@@ -1,13 +1,33 @@
-import { getUserProfile } from '../../services/user_service.js';
-import { encryptUserId } from '../../services/encryption_service.js';
-import { DASHBOARD_MESSAGES } from '../../config/constants.js';
+import { getUserById } from '../../services/user_service.js';
+import { encryptUserId, decryptUserId } from '../../services/encryption_service.js';
 import logger from '../../config/logger.js';
 
-export const getDashboard = async (req, res) => {
+export const getDashboardData = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const { user_id } = req.query;
 
-    const userResult = await getUserProfile(userId);
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId || actualUserId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const userResult = await getUserById(actualUserId);
 
     if (!userResult.success) {
       return res.status(404).json({
@@ -18,40 +38,20 @@ export const getDashboard = async (req, res) => {
 
     const user = userResult.user;
 
-    const dashboardData = {
-      user: {
-        id: encryptUserId(user.id),
-        fullName: user.full_name,
-        phoneNumber: user.phone_number,
-        profileCompleted: user.profile_completed
-      },
-      stats: {
-        profileCompletion: user.profile_completed ? 100 : 0,
-        joinedDate: user.created_at
-      },
-      quickActions: [
-        {
-          title: 'Update Profile',
-          description: 'Complete your profile information',
-          action: 'profile_update',
-          completed: user.profile_completed
-        }
-      ]
-    };
-
-    logger.info(`Dashboard accessed by user: ${userId}`);
+    logger.info(`Dashboard data fetched for user: ${actualUserId}`);
 
     return res.status(200).json({
       success: true,
-      message: DASHBOARD_MESSAGES.DATA_FETCH_SUCCESS,
+      message: 'Dashboard data fetched successfully',
       data: {
-        ...dashboardData,
-        encryptedUserId: encryptUserId(userId)
+        user_id: encryptUserId(actualUserId),
+        name: user.full_name || 'Not provided',
+        address: user.address || 'Not provided'
       }
     });
 
   } catch (error) {
-    logger.error('Dashboard error:', error);
+    logger.error('Get dashboard data error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error'
