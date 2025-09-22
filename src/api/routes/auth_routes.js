@@ -4,6 +4,7 @@ import { createUser, getUserByPhoneNumber, updateUserLastLogin } from '../../ser
 import { generateToken } from '../../services/jwt_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
 import { AUTH_MESSAGES } from '../../config/constants.js';
+import { logout } from '../controllers/logout_controller.js';
 import logger from '../../config/logger.js';
 
 const router = express.Router();
@@ -123,5 +124,6 @@ const verifyOtpAndLogin = async (req, res) => {
 
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtpAndLogin);
+router.post('/logout', logout);
 
 export default router;
