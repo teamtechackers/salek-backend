@@ -73,11 +73,12 @@ const verifyOtpAndLogin = async (req, res) => {
     
     if (!userResult.success) {
       // Create new user with phone number
-      const createResult = await createUser(null, phoneNumber);
+      const createResult = await createUser(phoneNumber);
       if (!createResult.success) {
+        logger.error('Create user failed:', createResult.error);
         return res.status(500).json({
           success: false,
-          message: 'Failed to create user'
+          message: 'Failed to create user: ' + createResult.error
         });
       }
       userResult = await getUserByPhoneNumber(phoneNumber);
@@ -92,6 +93,9 @@ const verifyOtpAndLogin = async (req, res) => {
 
     const encryptedUserId = encryptUserId(user.id);
 
+    // Check if profile is already updated
+    const alreadyProfileUpdated = !!(user.full_name && user.dob) ? 1 : 0;
+
     return res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -99,6 +103,7 @@ const verifyOtpAndLogin = async (req, res) => {
         userId: encryptedUserId,
         token: jwtToken,
         phoneNumber: phoneNumber,
+        already_profile_updated: alreadyProfileUpdated,
         user: {
           phone_number: user.phone_number,
           full_name: user.full_name,

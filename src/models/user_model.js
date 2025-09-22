@@ -3,8 +3,7 @@ export const USER_TABLE = 'users';
 export const USER_SCHEMA = `
   CREATE TABLE IF NOT EXISTS ${USER_TABLE} (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    firebase_uid VARCHAR(255) UNIQUE NOT NULL,
-    phone_number VARCHAR(20) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL UNIQUE,
     full_name VARCHAR(100),
     dob DATE,
     gender ENUM('male', 'female', 'other'),
@@ -20,14 +19,12 @@ export const USER_SCHEMA = `
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
-    INDEX idx_firebase_uid (firebase_uid),
     INDEX idx_phone_number (phone_number)
   )
 `;
 
 export const USER_FIELDS = {
   ID: 'id',
-  FIREBASE_UID: 'firebase_uid',
   PHONE_NUMBER: 'phone_number',
   FULL_NAME: 'full_name',
   DOB: 'dob',

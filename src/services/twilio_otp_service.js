@@ -162,7 +162,6 @@ const TEST_PHONE_NUMBERS = {
 };
 
 export const sendOtpWithFallback = async (phoneNumber) => {
-  // For test numbers, use predefined OTP
   if (TEST_PHONE_NUMBERS[phoneNumber]) {
     const session = await createOtpSession(phoneNumber);
     

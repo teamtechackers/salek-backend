@@ -2,13 +2,13 @@ import { query } from '../config/database.js';
 import { USER_TABLE, USER_FIELDS } from '../models/user_model.js';
 import logger from '../config/logger.js';
 
-export const createUser = async (firebaseUid, phoneNumber) => {
+export const createUser = async (phoneNumber) => {
   try {
     const sql = `
-      INSERT INTO ${USER_TABLE} (${USER_FIELDS.FIREBASE_UID}, ${USER_FIELDS.PHONE_NUMBER})
-      VALUES (?, ?)
+      INSERT INTO ${USER_TABLE} (${USER_FIELDS.PHONE_NUMBER})
+      VALUES (?)
     `;
-    const result = await query(sql, [firebaseUid, phoneNumber]);
+    const result = await query(sql, [phoneNumber]);
     
     const newUserId = result.insertId;
     
@@ -27,7 +27,8 @@ export const createUser = async (firebaseUid, phoneNumber) => {
     };
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
-      const existingUser = await getUserByFirebaseUid(firebaseUid);
+      // Check by phone number
+      const existingUser = await getUserByPhoneNumber(phoneNumber);
       if (existingUser.success) {
         return {
           success: true,
@@ -37,6 +38,7 @@ export const createUser = async (firebaseUid, phoneNumber) => {
         };
       }
     }
+    logger.error('Create user error:', error);
     return {
       success: false,
       error: error.message
@@ -44,32 +46,6 @@ export const createUser = async (firebaseUid, phoneNumber) => {
   }
 };
 
-export const getUserByFirebaseUid = async (firebaseUid) => {
-  try {
-    const sql = `
-      SELECT * FROM ${USER_TABLE} 
-      WHERE ${USER_FIELDS.FIREBASE_UID} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
-    `;
-    const result = await query(sql, [firebaseUid]);
-    
-    if (result.length === 0) {
-      return {
-        success: false,
-        error: 'User not found'
-      };
-    }
-
-    return {
-      success: true,
-      user: result[0]
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
 
 export const getUserByPhoneNumber = async (phoneNumber) => {
   try {
