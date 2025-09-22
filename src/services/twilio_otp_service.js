@@ -158,7 +158,8 @@ export const verifyOtpTwilio = async (sessionId, otpCode, phoneNumber) => {
 const TEST_PHONE_NUMBERS = {
   '+923078775479': '123456',
   '+923078795665': '654321',
-  '+923001234567': '111111'
+  '+923001234567': '111111',
+  '+923057220934': '123456'
 };
 
 export const sendOtpWithFallback = async (phoneNumber) => {
