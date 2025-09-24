@@ -4,7 +4,8 @@ import {
   getUserVaccinesByStatus, 
   updateVaccineStatus,
   addVaccineRecord,
-  getUserVaccineRecords
+  getUserVaccineRecords,
+  getUserVaccinesGroupedByType
 } from '../../services/user_vaccines_service.js';
 import { 
   addVaccineReminder,
@@ -17,6 +18,8 @@ import { getUserById } from '../../services/user_service.js';
 import { encryptUserId, decryptUserId } from '../../services/encryption_service.js';
 import { VACCINE_STATUS } from '../../models/user_vaccines_model.js';
 import logger from '../../config/logger.js';
+import { getAllCountries } from '../../services/countries_service.js';
+import { getAllCities, getCitiesByCountry } from '../../services/cities_service.js';
 
 export const getVaccinesList = async (req, res) => {
   try {
@@ -63,7 +66,7 @@ export const getVaccinesList = async (req, res) => {
 
 export const getSpecificUserVaccineRecords = async (req, res) => {
   try {
-    const { user_id, status, exclude_completed } = req.query;
+    const { user_id, status, exclude_completed, type } = req.query;
 
     if (!user_id) {
       return res.status(400).json({
@@ -72,13 +75,10 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       });
     }
 
-    // Check if user_id is encrypted or plain
     let actualUserId;
     if (isNaN(user_id)) {
-      // It's encrypted, decrypt it
       actualUserId = decryptUserId(user_id);
     } else {
-      // It's plain number
       actualUserId = parseInt(user_id);
     }
 
@@ -89,7 +89,6 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       });
     }
 
-    // Validate if user exists in database
     const userExists = await getUserById(actualUserId);
     if (!userExists.success) {
       return res.status(404).json({
@@ -98,7 +97,7 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       });
     }
 
-    let result;
+    // If a specific status is requested, keep legacy behavior to filter by status
     if (status) {
       const validStatuses = Object.values(VACCINE_STATUS);
       if (!validStatuses.includes(status)) {
@@ -107,38 +106,46 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
           message: `Invalid status. Valid options: ${validStatuses.join(', ')}`
         });
       }
-      result = await getUserVaccinesByStatus(actualUserId, status);
-    } else {
-      const excludeCompletedFlag = exclude_completed === 'true';
-      result = await getUserVaccines(actualUserId, excludeCompletedFlag);
-    }
-
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        message: result.error
+      const result = await getUserVaccinesByStatus(actualUserId, status);
+      if (!result.success) {
+        return res.status(500).json({ success: false, message: result.error });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'User vaccines fetched successfully',
+        data: {
+          userId: actualUserId,
+          encryptedUserId: encryptUserId(actualUserId),
+          user: {
+            id: userExists.user.id,
+            phoneNumber: userExists.user.phone_number,
+            fullName: userExists.user.full_name,
+            profileCompleted: userExists.user.profile_completed
+          },
+          vaccines: result.vaccines,
+          count: result.vaccines.length
+        }
       });
     }
 
-    logger.info(`Specific user vaccines fetched: User ${actualUserId}, Count: ${result.vaccines.length}`);
+    // Default: always return grouped by type when no status is provided
+    const excludeCompletedFlag = exclude_completed === 'true';
+    const { getUserVaccinesGroupedByType } = await import('../../services/user_vaccines_service.js');
+    const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, type);
+
+    if (!grouped.success) {
+      return res.status(500).json({ success: false, message: grouped.error });
+    }
 
     return res.status(200).json({
       success: true,
-      message: 'User vaccines fetched successfully',
+      message: 'User vaccines grouped by type fetched successfully',
       data: {
         userId: actualUserId,
         encryptedUserId: encryptUserId(actualUserId),
-        user: {
-          id: userExists.user.id,
-          phoneNumber: userExists.user.phone_number,
-          fullName: userExists.user.full_name,
-          profileCompleted: userExists.user.profile_completed
-        },
-        vaccines: result.vaccines,
-        count: result.vaccines.length
+        groups: grouped.groups
       }
     });
-
   } catch (error) {
     logger.error('Get specific user vaccines error:', error);
     return res.status(500).json({
@@ -193,7 +200,7 @@ export const addSpecificUserVaccine = async (req, res) => {
       });
     }
 
-    const result = await addUserVaccine(
+    const result = await addVaccineRecord(
       actualUserId,
       vaccine_id,
       status || VACCINE_STATUS.COMPLETED,
@@ -255,7 +262,7 @@ export const updateUserVaccineRecord = async (req, res) => {
       });
     }
 
-    const result = await updateUserVaccineStatus(userId, vaccine_id, status, given_date, notes);
+    const result = await updateVaccineStatus(userId, vaccine_id, status, given_date, notes);
 
     if (!result.success) {
       return res.status(404).json({
@@ -875,5 +882,58 @@ export const getRecord = async (req, res) => {
       success: false,
       message: 'Internal server error'
     });
+  }
+};
+
+export const getCountriesAPI = async (req, res) => {
+  try {
+    const result = await getAllCountries();
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.error || 'Failed to fetch countries' });
+    }
+    return res.status(200).json({ success: true, message: 'Countries fetched successfully', data: { countries: result.countries } });
+  } catch (error) {
+    logger.error('Get countries error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const getCitiesAPI = async (req, res) => {
+  try {
+    const { country_id } = req.query;
+    let result;
+    if (country_id) {
+      result = await getCitiesByCountry(country_id);
+    } else {
+      result = await getAllCities();
+    }
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.error || 'Failed to fetch cities' });
+    }
+    return res.status(200).json({ success: true, message: 'Cities fetched successfully', data: { cities: result.cities } });
+  } catch (error) {
+    logger.error('Get cities error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const getHospitalsAPI = async (req, res) => {
+  try {
+    const { city_id } = req.query;
+    let result;
+    if (city_id) {
+      const { getAllHospitalsByCity } = await import('../../services/hospitals_service.js');
+      result = await getAllHospitalsByCity(parseInt(city_id));
+    } else {
+      const { getAllHospitals } = await import('../../services/hospitals_service.js');
+      result = await getAllHospitals();
+    }
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.error });
+    }
+    return res.status(200).json({ success: true, message: 'Hospitals fetched successfully', data: { hospitals: result.hospitals } });
+  } catch (error) {
+    logger.error('Get hospitals error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

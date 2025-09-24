@@ -12,7 +12,10 @@ import {
   updateVaccineStatusesAPI,
   getVaccineDoseSummaryAPI,
   addRecord,
-  getRecord
+  getRecord,
+  getCountriesAPI,
+  getCitiesAPI,
+  getHospitalsAPI
 } from '../controllers/vaccines_controller.js';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { uploadVaccineImage } from '../../middleware/upload_middleware.js';
@@ -34,5 +37,10 @@ router.post('/update-vaccine-statuses', updateVaccineStatusesAPI);
 router.get('/get-dose-summary', getVaccineDoseSummaryAPI);
 router.post('/add-record', uploadVaccineImage, addRecord);
 router.get('/get-record', getRecord);
+
+// Meta under vaccines
+router.get('/countries', getCountriesAPI);
+router.get('/cities', getCitiesAPI);
+router.get('/hospitals', getHospitalsAPI);
 
 export default router;

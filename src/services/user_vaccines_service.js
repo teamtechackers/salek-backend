@@ -258,16 +258,93 @@ export const getUserVaccines = async (userId, excludeCompleted = false) => {
         completed_date: formatDate(vaccine.completed_date),
         dose_number: vaccine.dose_number,
         city_id: vaccine.city_id,
-        city_name: vaccine.city_name,
+        city_name: vaccine.city_name || null,
         image_url: imageUrl,
-        notes: vaccine.notes,
+        notes: vaccine.notes || null,
         reminders: formattedReminders
       });
     }
-    
+
     return { success: true, vaccines: formattedVaccines };
   } catch (error) {
     logger.error('Get user vaccines error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// New: grouped by type with optional type filter
+export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = false, typeFilter) => {
+  try {
+    await updateAllVaccineStatuses(userId);
+
+    const currentDate = new Date();
+    const twoYearsFromNow = new Date();
+    twoYearsFromNow.setFullYear(currentDate.getFullYear() + 2);
+    const maxDate = twoYearsFromNow.toISOString().split('T')[0];
+
+    let statusFilter = '';
+    if (excludeCompleted) {
+      statusFilter = ` AND uv.${USER_VACCINES_FIELDS.STATUS} != 'completed'`;
+    }
+
+    let typeCondition = '';
+    const params = [userId, maxDate];
+    if (typeFilter) {
+      typeCondition = ` AND v.${VACCINES_FIELDS.TYPE} = ?`;
+      params.push(typeFilter);
+    }
+
+    const sql = `
+      SELECT 
+        uv.${USER_VACCINES_FIELDS.USER_VACCINE_ID},
+        uv.${USER_VACCINES_FIELDS.VACCINE_ID},
+        uv.${USER_VACCINES_FIELDS.STATUS},
+        uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE},
+        uv.${USER_VACCINES_FIELDS.COMPLETED_DATE},
+        uv.${USER_VACCINES_FIELDS.DOSE_NUMBER},
+        uv.${USER_VACCINES_FIELDS.CITY_ID},
+        uv.${USER_VACCINES_FIELDS.IMAGE_URL},
+        uv.${USER_VACCINES_FIELDS.NOTES},
+        v.${VACCINES_FIELDS.TYPE} as vaccine_type,
+        v.${VACCINES_FIELDS.NAME} as vaccine_name
+      FROM ${USER_VACCINES_TABLE} uv
+      INNER JOIN ${VACCINES_TABLE} v ON uv.${USER_VACCINES_FIELDS.VACCINE_ID} = v.${VACCINES_FIELDS.VACCINE_ID}
+      WHERE uv.${USER_VACCINES_FIELDS.USER_ID} = ?
+      AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+      AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}${typeCondition}
+      ORDER BY v.${VACCINES_FIELDS.TYPE} ASC, uv.${USER_VACCINES_FIELDS.VACCINE_ID}, uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} ASC
+    `;
+
+    const rows = await query(sql, params);
+
+    const formatDate = (dateString) => {
+      if (!dateString) return null;
+      return new Date(dateString).toISOString().split('T')[0];
+    };
+
+    const groups = {};
+    for (const row of rows) {
+      const typeKey = row.vaccine_type || 'General';
+      if (!groups[typeKey]) groups[typeKey] = [];
+
+      const imageUrl = row.image_url ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${row.image_url}` : null;
+
+      groups[typeKey].push({
+        user_vaccine_id: row.user_vaccine_id,
+        vaccine_id: row.vaccine_id,
+        vaccine_name: row.vaccine_name,
+        status: row.status,
+        scheduled_date: formatDate(row.scheduled_date),
+        completed_date: formatDate(row.completed_date),
+        dose_number: row.dose_number,
+        image_url: imageUrl,
+        notes: row.notes || null
+      });
+    }
+
+    return { success: true, groups };
+  } catch (error) {
+    logger.error('Get user vaccines grouped by type error:', error);
     return { success: false, error: error.message };
   }
 };
