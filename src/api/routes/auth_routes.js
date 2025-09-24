@@ -97,6 +97,31 @@ const verifyOtpAndLogin = async (req, res) => {
     // Check if profile is already updated
     const alreadyProfileUpdated = !!(user.full_name && user.dob) ? 1 : 0;
 
+    // Check notification permissions
+    let hasNotificationPermissions = 0;
+    try {
+      const { getUserNotificationPermissions } = await import('../services/notification_permissions_service.js');
+      const notificationResult = await getUserNotificationPermissions(user.id);
+      hasNotificationPermissions = notificationResult.success && 
+        (notificationResult.permissions.notification || 
+         notificationResult.permissions.calendar || 
+         notificationResult.permissions.email) ? 1 : 0;
+    } catch (error) {
+      logger.error('Error checking notification permissions:', error);
+      hasNotificationPermissions = 0;
+    }
+
+    // Check if user has vaccines
+    let hasVaccines = 0;
+    try {
+      const { getUserVaccines } = await import('../services/user_vaccines_service.js');
+      const vaccinesResult = await getUserVaccines(user.id, false);
+      hasVaccines = vaccinesResult.success && vaccinesResult.vaccines && vaccinesResult.vaccines.length > 0 ? 1 : 0;
+    } catch (error) {
+      logger.error('Error checking vaccines:', error);
+      hasVaccines = 0;
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -105,6 +130,8 @@ const verifyOtpAndLogin = async (req, res) => {
         token: jwtToken,
         phoneNumber: phoneNumber,
         already_profile_updated: alreadyProfileUpdated,
+        has_notification_permissions: hasNotificationPermissions,
+        has_vaccines: hasVaccines,
         user: {
           phone_number: user.phone_number,
           full_name: user.full_name,
