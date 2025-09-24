@@ -129,3 +129,29 @@ export const deleteNotificationPermissions = async (userId) => {
     };
   }
 };
+
+// Fast check: return 1 if any of the three permissions is enabled, else 0
+export const hasAnyNotificationPermission = async (userId) => {
+  try {
+    const sql = `
+      SELECT (
+        CASE WHEN 
+          COALESCE(${NOTIFICATION_PERMISSIONS_FIELDS.NOTIFICATION}, 0) +
+          COALESCE(${NOTIFICATION_PERMISSIONS_FIELDS.CALENDAR}, 0) +
+          COALESCE(${NOTIFICATION_PERMISSIONS_FIELDS.EMAIL}, 0)
+        > 0 THEN 1 ELSE 0 END
+      ) AS any_enabled
+      FROM ${NOTIFICATION_PERMISSIONS_TABLE}
+      WHERE ${NOTIFICATION_PERMISSIONS_FIELDS.USER_ID} = ?
+      LIMIT 1
+    `;
+    const result = await query(sql, [userId]);
+    if (result.length === 0) {
+      return { success: true, anyEnabled: 0 };
+    }
+    const anyEnabled = Number(result[0].any_enabled) === 1 ? 1 : 0;
+    return { success: true, anyEnabled };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

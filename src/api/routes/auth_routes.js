@@ -95,17 +95,14 @@ const verifyOtpAndLogin = async (req, res) => {
     const encryptedUserId = encryptUserId(user.id);
 
     // Check if profile is already updated
-    const alreadyProfileUpdated = !!(user.full_name && user.dob) ? 1 : 0;
+    const alreadyProfileUpdated = user.profile_completed ? 1 : 0;
 
     // Check notification permissions
     let hasNotificationPermissions = 0;
     try {
-      const { getUserNotificationPermissions } = await import('../services/notification_permissions_service.js');
-      const notificationResult = await getUserNotificationPermissions(user.id);
-      hasNotificationPermissions = notificationResult.success && 
-        (notificationResult.permissions.notification || 
-         notificationResult.permissions.calendar || 
-         notificationResult.permissions.email) ? 1 : 0;
+      const { hasAnyNotificationPermission } = await import('../../services/notification_permissions_service.js');
+      const anyPerm = await hasAnyNotificationPermission(user.id);
+      hasNotificationPermissions = anyPerm.success ? (anyPerm.anyEnabled ? 1 : 0) : 0;
     } catch (error) {
       logger.error('Error checking notification permissions:', error);
       hasNotificationPermissions = 0;
@@ -114,7 +111,7 @@ const verifyOtpAndLogin = async (req, res) => {
     // Check if user has vaccines
     let hasVaccines = 0;
     try {
-      const { getUserVaccines } = await import('../services/user_vaccines_service.js');
+      const { getUserVaccines } = await import('../../services/user_vaccines_service.js');
       const vaccinesResult = await getUserVaccines(user.id, false);
       hasVaccines = vaccinesResult.success && vaccinesResult.vaccines && vaccinesResult.vaccines.length > 0 ? 1 : 0;
     } catch (error) {
