@@ -539,3 +539,39 @@ export const deleteVaccineReminder = async (userVaccineId) => {
     return { success: false, error: error.message };
   }
 };
+
+export const getUserVaccineRecords = async (userId) => {
+  try {
+    const sql = `
+      SELECT 
+        uv.user_vaccine_id,
+        uv.dose_number,
+        uv.completed_date,
+        uv.city_id,
+        uv.image_url,
+        uv.notes,
+        uv.created_at
+      FROM ${USER_VACCINES_TABLE} uv
+      WHERE uv.user_id = ? AND uv.status = 'completed'
+      ORDER BY uv.completed_date DESC, uv.created_at DESC
+    `;
+    
+    const result = await query(sql, [userId]);
+    
+    const records = result.map(record => ({
+      user_vaccine_id: record.user_vaccine_id,
+      dose_number: record.dose_number,
+      completed_date: record.completed_date,
+      city_id: record.city_id,
+      image_url: record.image_url ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${record.image_url}` : null,
+      notes: record.notes,
+      created_at: record.created_at
+    }));
+    
+    logger.info(`Fetched ${records.length} completed vaccine records for user: ${userId}`);
+    return { success: true, records };
+  } catch (error) {
+    logger.error('Get user vaccine records error:', error);
+    return { success: false, error: error.message };
+  }
+};

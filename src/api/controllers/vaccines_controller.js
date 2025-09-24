@@ -3,7 +3,8 @@ import {
   getUserVaccines, 
   getUserVaccinesByStatus, 
   updateVaccineStatus,
-  addVaccineRecord
+  addVaccineRecord,
+  getUserVaccineRecords
 } from '../../services/user_vaccines_service.js';
 import { 
   addVaccineReminder,
@@ -707,6 +708,7 @@ export const getVaccineDoseSummaryAPI = async (req, res) => {
 export const addRecord = async (req, res) => {
   try {
     const { 
+      user_id,
       user_vaccine_id, 
       dose_number, 
       completed_date, 
@@ -714,6 +716,13 @@ export const addRecord = async (req, res) => {
       city_id, 
       notes 
     } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
 
     if (!user_vaccine_id) {
       return res.status(400).json({
@@ -733,6 +742,30 @@ export const addRecord = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Completed date is required'
+      });
+    }
+
+    // Decrypt user ID
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId || actualUserId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Verify user exists
+    const userExists = await getUserById(actualUserId);
+    if (!userExists.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found or not valid'
       });
     }
 
@@ -761,6 +794,13 @@ export const addRecord = async (req, res) => {
       success: true,
       message: result.message || 'Vaccine record added successfully',
       data: {
+        user_id: encryptUserId(actualUserId),
+        user_vaccine_id: user_vaccine_id,
+        dose_number: dose_number,
+        completed_date: completed_date,
+        completed_time: completed_time,
+        city_id: city_id,
+        notes: notes,
         image_name: imageName,
         image_url: imageName ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${imageName}` : null
       }
@@ -772,6 +812,68 @@ export const addRecord = async (req, res) => {
       success: false,
       message: 'Internal server error',
       error: error.message
+    });
+  }
+};
+
+export const getRecord = async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId || actualUserId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const userExists = await getUserById(actualUserId);
+    if (!userExists.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found or not valid'
+      });
+    }
+
+    const result = await getUserVaccineRecords(actualUserId);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to fetch vaccine records'
+      });
+    }
+
+    logger.info(`Vaccine records fetched for user: ${actualUserId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine records fetched successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        records: result.records
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get vaccine records error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
     });
   }
 };

@@ -11,7 +11,8 @@ import {
   markVaccinesAsTaken,
   updateVaccineStatusesAPI,
   getVaccineDoseSummaryAPI,
-  addRecord
+  addRecord,
+  getRecord
 } from '../controllers/vaccines_controller.js';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { uploadVaccineImage } from '../../middleware/upload_middleware.js';
@@ -32,5 +33,6 @@ router.put('/mark-vaccines-taken', markVaccinesAsTaken);
 router.post('/update-vaccine-statuses', updateVaccineStatusesAPI);
 router.get('/get-dose-summary', getVaccineDoseSummaryAPI);
 router.post('/add-record', uploadVaccineImage, addRecord);
+router.get('/get-record', getRecord);
 
 export default router;
