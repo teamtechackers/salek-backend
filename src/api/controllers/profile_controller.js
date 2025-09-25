@@ -7,17 +7,17 @@ export const updateProfile = async (req, res) => {
   try {
     const {
       user_id,
-      fullName,
+      full_name,
       dob,
       gender,
       country,
       address,
-      contactNo,
-      materialStatus,
-      doYouHaveChildren,
-      howManyChildren,
-      areYouPregnant,
-      pregnancyDetail
+      contact_no,
+      material_status,
+      do_you_have_children,
+      how_many_children,
+      are_you_pregnant,
+      pregnancy_detail
     } = req.body;
 
     if (!user_id) {
@@ -49,7 +49,7 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    if (materialStatus && !MATERIAL_STATUS_OPTIONS.includes(materialStatus)) {
+    if (material_status && !MATERIAL_STATUS_OPTIONS.includes(material_status)) {
       return res.status(400).json({
         success: false,
         message: PROFILE_MESSAGES.INVALID_DATA
@@ -57,17 +57,17 @@ export const updateProfile = async (req, res) => {
     }
 
     const profileData = {
-      fullName,
+      fullName: full_name,
       dob,
       gender,
       country,
       address,
-      contactNo,
-      materialStatus,
-      doYouHaveChildren: doYouHaveChildren ? 1 : 0,
-      howManyChildren,
-      areYouPregnant: areYouPregnant ? 1 : 0,
-      pregnancyDetail
+      contactNo: contact_no,
+      materialStatus: material_status,
+      doYouHaveChildren: do_you_have_children ? 1 : 0,
+      howManyChildren: how_many_children,
+      areYouPregnant: are_you_pregnant ? 1 : 0,
+      pregnancyDetail: pregnancy_detail
     };
 
     const result = await updateUserProfile(actualUserId, profileData);

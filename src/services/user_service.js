@@ -154,21 +154,21 @@ export const updateUserProfile = async (userId, profileData) => {
     `;
 
     const params = [
-      fullName || null,
-      dob || null,
-      gender || null,
-      country || null,
-      address || null,
-      contactNo || null,
-      materialStatus || null,
-      doYouHaveChildren || 0,
-      howManyChildren || 0,
-      areYouPregnant || 0,
-      pregnancyDetail || null,
+      fullName !== undefined ? fullName : null,
+      dob !== undefined ? dob : null,
+      gender !== undefined ? gender : null,
+      country !== undefined ? country : null,
+      address !== undefined ? address : null,
+      contactNo !== undefined ? contactNo : null,
+      materialStatus !== undefined ? materialStatus : null,
+      doYouHaveChildren !== undefined ? doYouHaveChildren : 0,
+      howManyChildren !== undefined ? howManyChildren : 0,
+      areYouPregnant !== undefined ? areYouPregnant : 0,
+      pregnancyDetail !== undefined ? pregnancyDetail : null,
       userId
     ];
 
-    await query(sql, params);
+    const result = await query(sql, params);
 
     // If DOB is provided, auto-generate user vaccines
     if (dob) {
