@@ -384,7 +384,7 @@ export const updateReminderAPI = async (req, res) => {
 
 export const getRemindersAPI = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, user_vaccine_id } = req.query;
 
     if (!user_id) {
       return res.status(400).json({
@@ -408,6 +408,31 @@ export const getRemindersAPI = async (req, res) => {
       });
     }
 
+    // If user_vaccine_id is provided, get reminders for specific vaccine
+    if (user_vaccine_id) {
+      const result = await getVaccineReminders(parseInt(user_vaccine_id));
+      
+      if (!result.success) {
+        return res.status(500).json({
+          success: false,
+          message: result.error || 'Failed to fetch vaccine reminders'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Vaccine reminders fetched successfully',
+        data: {
+          userId: actualUserId,
+          encryptedUserId: encryptUserId(actualUserId),
+          user_vaccine_id: parseInt(user_vaccine_id),
+          reminders: result.reminders,
+          count: result.reminders.length
+        }
+      });
+    }
+
+    // Get all reminders for user
     const result = await getUserAllReminders(actualUserId);
 
     if (!result.success) {
@@ -935,5 +960,87 @@ export const getHospitalsAPI = async (req, res) => {
   } catch (error) {
     logger.error('Get hospitals error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const addVaccineAPI = async (req, res) => {
+  try {
+    const { 
+      name, 
+      type, 
+      category, 
+      sub_category, 
+      min_age_months, 
+      max_age_months, 
+      total_doses, 
+      frequency, 
+      when_to_give, 
+      dose, 
+      route, 
+      site, 
+      notes 
+    } = req.body;
+
+    // Validation
+    if (!name || !type || !category || !sub_category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, type, category, and sub_category are required'
+      });
+    }
+
+    if (min_age_months === undefined || min_age_months === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'min_age_months is required'
+      });
+    }
+
+    // Import the service
+    const { addVaccine } = await import('../../services/vaccines_service.js');
+    
+    const result = await addVaccine({
+      name,
+      type,
+      category,
+      sub_category,
+      min_age_months: parseInt(min_age_months) || 0,
+      max_age_months: max_age_months ? parseInt(max_age_months) : null,
+      total_doses: total_doses ? parseInt(total_doses) : null,
+      frequency: frequency || 'One time',
+      when_to_give: when_to_give || null,
+      dose: dose || null,
+      route: route || null,
+      site: site || null,
+      notes: notes || null
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to add vaccine'
+      });
+    }
+
+    logger.info(`Vaccine added: ${name} (ID: ${result.vaccine_id})`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Vaccine added successfully',
+      data: {
+        vaccine_id: result.vaccine_id,
+        name: name,
+        type: type,
+        category: category,
+        sub_category: sub_category
+      }
+    });
+
+  } catch (error) {
+    logger.error('Add vaccine error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 };

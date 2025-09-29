@@ -70,6 +70,58 @@ export const getVaccinesByAge = async (ageMonths) => {
   }
 };
 
+export const addVaccine = async (vaccineData) => {
+  try {
+    const sql = `
+      INSERT INTO ${VACCINES_TABLE} (
+        ${VACCINES_FIELDS.NAME},
+        ${VACCINES_FIELDS.TYPE},
+        ${VACCINES_FIELDS.CATEGORY},
+        ${VACCINES_FIELDS.SUB_CATEGORY},
+        ${VACCINES_FIELDS.MIN_AGE_MONTHS},
+        ${VACCINES_FIELDS.MAX_AGE_MONTHS},
+        ${VACCINES_FIELDS.TOTAL_DOSES},
+        ${VACCINES_FIELDS.FREQUENCY},
+        ${VACCINES_FIELDS.WHEN_TO_GIVE},
+        ${VACCINES_FIELDS.DOSE},
+        ${VACCINES_FIELDS.ROUTE},
+        ${VACCINES_FIELDS.SITE},
+        ${VACCINES_FIELDS.NOTES}
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      vaccineData.name,
+      vaccineData.type,
+      vaccineData.category,
+      vaccineData.sub_category,
+      vaccineData.min_age_months,
+      vaccineData.max_age_months,
+      vaccineData.total_doses,
+      vaccineData.frequency,
+      vaccineData.when_to_give,
+      vaccineData.dose,
+      vaccineData.route,
+      vaccineData.site,
+      vaccineData.notes
+    ];
+
+    const result = await query(sql, params);
+    
+    return {
+      success: true,
+      vaccine_id: result.insertId,
+      message: 'Vaccine added successfully'
+    };
+  } catch (error) {
+    logger.error('Add vaccine error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 export const seedVaccinesData = async () => {
   try {
     const existingVaccines = await query(`SELECT COUNT(*) as count FROM ${VACCINES_TABLE}`);
