@@ -7,6 +7,7 @@ import {
   getUserVaccineRecords,
   getUserVaccinesGroupedByType
 } from '../../services/user_vaccines_service.js';
+import { getDependentById } from '../../services/dependents_service.js';
 import { 
   addVaccineReminder,
   getVaccineReminders,
@@ -745,7 +746,8 @@ export const addRecord = async (req, res) => {
       dose_number, 
       completed_date, 
       completed_time, 
-      city_id, 
+      city_id,
+      hospital_id, 
       notes 
     } = req.body;
 
@@ -809,6 +811,7 @@ export const addRecord = async (req, res) => {
       completed_date,
       completed_time || null,
       city_id || null,
+      hospital_id || null,
       imageName,
       notes || null
     );
@@ -832,6 +835,7 @@ export const addRecord = async (req, res) => {
         completed_date: completed_date,
         completed_time: completed_time,
         city_id: city_id,
+        hospital_id: hospital_id,
         notes: notes,
         image_name: imageName,
         image_url: imageName ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${imageName}` : null
@@ -848,9 +852,150 @@ export const addRecord = async (req, res) => {
   }
 };
 
+// Add vaccine record for dependent
+export const addRecordDependent = async (req, res) => {
+  try {
+    const { 
+      user_id,
+      dependent_id,
+      user_vaccine_id, 
+      dose_number, 
+      completed_date, 
+      completed_time, 
+      city_id,
+      hospital_id, 
+      notes 
+    } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    if (!dependent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent ID is required'
+      });
+    }
+
+    if (!user_vaccine_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User vaccine ID is required'
+      });
+    }
+
+    if (!dose_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dose number is required'
+      });
+    }
+
+    if (!completed_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Completed date is required'
+      });
+    }
+
+    // Decrypt user ID
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId || actualUserId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Handle dependent_id (only accept numeric dependent_id)
+    let actualDependentId = parseInt(dependent_id);
+    
+    if (!actualDependentId || isNaN(actualDependentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent ID must be a valid number'
+      });
+    }
+
+    // Verify dependent exists and belongs to user
+    const { getDependentById } = await import('../../services/dependents_service.js');
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    if (dependentResult.dependent.user_id !== actualUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Dependent does not belong to this user'
+      });
+    }
+
+    const imageName = req.file ? req.file.filename : null;
+
+    const result = await addVaccineRecord(
+      user_vaccine_id,
+      dose_number,
+      completed_date,
+      completed_time || null,
+      city_id || null,
+      hospital_id || null,
+      imageName,
+      notes || null
+    );
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to add vaccine record'
+      });
+    }
+
+    logger.info(`Dependent vaccine record added: user_vaccine_id ${user_vaccine_id}, dependent_id ${actualDependentId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message || 'Dependent vaccine record added successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        dependent_id: actualDependentId,
+        user_vaccine_id: user_vaccine_id,
+        dose_number: dose_number,
+        completed_date: completed_date,
+        completed_time: completed_time,
+        city_id: city_id,
+        hospital_id: hospital_id,
+        notes: notes,
+        image_name: imageName,
+        image_url: imageName ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${imageName}` : null
+      }
+    });
+
+  } catch (error) {
+    logger.error('Add dependent vaccine record error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 export const getRecord = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, dependent_id } = req.query;
 
     if (!user_id) {
       return res.status(400).json({
@@ -873,15 +1018,46 @@ export const getRecord = async (req, res) => {
       });
     }
 
-    const userExists = await getUserById(actualUserId);
-    if (!userExists.success) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found or not valid'
-      });
+    // Handle dependent_id if provided
+    let actualDependentId = null;
+    if (dependent_id) {
+      actualDependentId = parseInt(dependent_id);
+      
+      if (!actualDependentId || isNaN(actualDependentId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Dependent ID must be a valid number'
+        });
+      }
+
+      // Verify dependent exists and belongs to user
+      const { getDependentById } = await import('../../services/dependents_service.js');
+      const dependentResult = await getDependentById(actualDependentId);
+      if (!dependentResult.success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Dependent not found'
+        });
+      }
+
+      if (dependentResult.dependent.user_id !== actualUserId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Dependent does not belong to this user'
+        });
+      }
+    } else {
+      // Verify user exists (only if no dependent_id)
+      const userExists = await getUserById(actualUserId);
+      if (!userExists.success) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found or not valid'
+        });
+      }
     }
 
-    const result = await getUserVaccineRecords(actualUserId);
+    const result = await getUserVaccineRecords(actualUserId, actualDependentId);
 
     if (!result.success) {
       return res.status(500).json({
@@ -890,19 +1066,113 @@ export const getRecord = async (req, res) => {
       });
     }
 
-    logger.info(`Vaccine records fetched for user: ${actualUserId}`);
+    const logMessage = actualDependentId ? 
+      `Vaccine records fetched for dependent: ${actualDependentId}, user: ${actualUserId}` :
+      `Vaccine records fetched for user: ${actualUserId}`;
+    logger.info(logMessage);
 
     return res.status(200).json({
       success: true,
-      message: 'Vaccine records fetched successfully',
+      message: actualDependentId ? 'Dependent vaccine records fetched successfully' : 'Vaccine records fetched successfully',
       data: {
         user_id: encryptUserId(actualUserId),
+        dependent_id: actualDependentId,
         records: result.records
       }
     });
 
   } catch (error) {
     logger.error('Get vaccine records error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Get vaccine records for dependent
+export const getRecordDependent = async (req, res) => {
+  try {
+    const { user_id, dependent_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    if (!dependent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent ID is required'
+      });
+    }
+
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId || actualUserId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Handle dependent_id (only accept numeric dependent_id)
+    let actualDependentId = parseInt(dependent_id);
+    
+    if (!actualDependentId || isNaN(actualDependentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent ID must be a valid number'
+      });
+    }
+
+    // Verify dependent exists and belongs to user
+    const { getDependentById } = await import('../../services/dependents_service.js');
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    if (dependentResult.dependent.user_id !== actualUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Dependent does not belong to this user'
+      });
+    }
+
+    const result = await getUserVaccineRecords(actualUserId, actualDependentId);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to fetch dependent vaccine records'
+      });
+    }
+
+    logger.info(`Dependent vaccine records fetched: dependent ${actualDependentId}, user ${actualUserId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent vaccine records fetched successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        dependent_id: actualDependentId,
+        records: result.records
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get dependent vaccine records error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -1038,6 +1308,297 @@ export const addVaccineAPI = async (req, res) => {
 
   } catch (error) {
     logger.error('Add vaccine error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Get dependent vaccines
+export const getDependentVaccinesAPI = async (req, res) => {
+  try {
+    const { dependent_id, user_id, status, group_by, type } = req.query;
+
+    if (!dependent_id || !user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both user_id and dependent_id are required'
+      });
+    }
+
+    // Decrypt user ID if needed
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Decrypt dependent ID if needed
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id);
+    }
+
+    if (!actualDependentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid dependent ID format'
+      });
+    }
+
+    // Verify dependent exists and belongs to the user
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    const dependent = dependentResult.dependent;
+
+    // Verify dependent belongs to the user
+    if (dependent.user_id !== actualUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Dependent does not belong to this user'
+      });
+    }
+
+    let result;
+    if (status) {
+      result = await getUserVaccinesByStatus(actualUserId, status, actualDependentId);
+    } else if (group_by === 'type' && type) {
+      result = await getUserVaccinesGroupedByType(actualUserId, false, type, actualDependentId);
+    } else if (group_by === 'type' || group_by === undefined) {
+      // Default to grouped by type for dependents
+      result = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId);
+    } else {
+      result = await getUserVaccines(actualUserId, false, actualDependentId);
+    }
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to fetch dependent vaccines'
+      });
+    }
+
+    logger.info(`Dependent vaccines fetched: Dependent ${actualDependentId}, Count: ${result.vaccines ? result.vaccines.length : 'N/A'}`);
+
+    // Return response in same format as user vaccines
+    if (result.groups) {
+      // Grouped response
+      return res.status(200).json({
+        success: true,
+        message: 'Dependent vaccines grouped by type fetched successfully',
+        data: {
+          userId: actualUserId,
+          encryptedUserId: encryptUserId(actualUserId),
+          dependentId: actualDependentId,
+          encryptedDependentId: encryptUserId(actualDependentId),
+          dependent: {
+            id: dependent.dependent_id,
+            full_name: dependent.full_name,
+            dob: dependent.dob,
+            gender: dependent.gender,
+            profile_completed: dependent.profile_completed
+          },
+          groups: result.groups
+        }
+      });
+    } else {
+      // Flat response
+      return res.status(200).json({
+        success: true,
+        message: 'Dependent vaccines fetched successfully',
+        data: {
+          userId: actualUserId,
+          encryptedUserId: encryptUserId(actualUserId),
+          dependentId: actualDependentId,
+          encryptedDependentId: encryptUserId(actualDependentId),
+          dependent: {
+            id: dependent.dependent_id,
+            full_name: dependent.full_name,
+            dob: dependent.dob,
+            gender: dependent.gender,
+            profile_completed: dependent.profile_completed
+          },
+          vaccines: result.vaccines || [],
+          count: result.vaccines ? result.vaccines.length : 0
+        }
+      });
+    }
+  } catch (error) {
+    logger.error('Get dependent vaccines error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Add dependent vaccine record
+export const addDependentVaccineRecordAPI = async (req, res) => {
+  try {
+    const { 
+      user_vaccine_id, 
+      dose_number, 
+      completed_date, 
+      completed_time, 
+      city_id, 
+      notes,
+      dependent_id 
+    } = req.body;
+
+    if (!user_vaccine_id || !dependent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User vaccine ID and dependent ID are required'
+      });
+    }
+
+    // Decrypt dependent ID if needed
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id);
+    }
+
+    if (!actualDependentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid dependent ID format'
+      });
+    }
+
+    // Verify dependent exists
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    const imageName = req.file ? req.file.filename : null;
+
+    const result = await addVaccineRecord(
+      parseInt(user_vaccine_id),
+      parseInt(dose_number) || 1,
+      completed_date,
+      completed_time,
+      city_id ? parseInt(city_id) : null,
+      imageName,
+      notes
+    );
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to add vaccine record'
+      });
+    }
+
+    logger.info(`Dependent vaccine record added: Dependent ${actualDependentId}, Vaccine ID: ${user_vaccine_id}`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Dependent vaccine record added successfully',
+      data: {
+        dependent_id: actualDependentId,
+        encrypted_dependent_id: encryptUserId(actualDependentId),
+        user_vaccine_id: parseInt(user_vaccine_id),
+        dose_number: parseInt(dose_number) || 1,
+        completed_date: completed_date,
+        completed_time: completed_time,
+        city_id: city_id ? parseInt(city_id) : null,
+        image_url: imageName ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/vaccines/${imageName}` : null,
+        notes: notes
+      }
+    });
+  } catch (error) {
+    logger.error('Add dependent vaccine record error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Get dependent vaccine records
+export const getDependentVaccineRecordsAPI = async (req, res) => {
+  try {
+    const { dependent_id } = req.query;
+
+    if (!dependent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent ID is required'
+      });
+    }
+
+    // Decrypt dependent ID if needed
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id);
+    }
+
+    if (!actualDependentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid dependent ID format'
+      });
+    }
+
+    // Verify dependent exists
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    const result = await getUserVaccineRecords(actualDependentId);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to fetch dependent vaccine records'
+      });
+    }
+
+    logger.info(`Dependent vaccine records fetched: Dependent ${actualDependentId}, Count: ${result.records.length}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent vaccine records fetched successfully',
+      data: {
+        dependent_id: actualDependentId,
+        encrypted_dependent_id: encryptUserId(actualDependentId),
+        user_id: dependentResult.dependent.user_id,
+        encrypted_user_id: encryptUserId(dependentResult.dependent.user_id),
+        records: result.records,
+        count: result.records.length
+      }
+    });
+  } catch (error) {
+    logger.error('Get dependent vaccine records error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error'

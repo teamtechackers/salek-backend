@@ -41,6 +41,7 @@ export const USER_VACCINES_FIELDS = {
   CITY_ID: 'city_id',
   IMAGE_URL: 'image_url',
   NOTES: 'notes',
+  DEPENDENT_ID: 'dependent_id',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
   IS_ACTIVE: 'is_active'

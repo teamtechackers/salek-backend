@@ -103,17 +103,31 @@ const parseVaccineFrequency = (vaccine) => {
   return doses;
 };
 
-export const generateUserVaccines = async (userId) => {
+export const generateUserVaccines = async (userId, dependentId = null) => {
   try {
-    const userResult = await query(`SELECT ${USER_FIELDS.DOB}, ${USER_FIELDS.COUNTRY} FROM ${USER_TABLE} WHERE ${USER_FIELDS.ID} = ?`, [userId]);
-    if (userResult.length === 0) {
-      return { success: false, error: 'User not found' };
+    let userResult, userDob, userCountry;
+    
+    if (dependentId) {
+      // Generate vaccines for dependent
+      const { DEPENDENTS_TABLE, DEPENDENTS_FIELDS } = await import('../models/dependents_model.js');
+      userResult = await query(`SELECT ${DEPENDENTS_FIELDS.DOB}, ${DEPENDENTS_FIELDS.COUNTRY} FROM ${DEPENDENTS_TABLE} WHERE ${DEPENDENTS_FIELDS.DEPENDENT_ID} = ?`, [dependentId]);
+      if (userResult.length === 0) {
+        return { success: false, error: 'Dependent not found' };
+      }
+    } else {
+      // Generate vaccines for user
+      userResult = await query(`SELECT ${USER_FIELDS.DOB}, ${USER_FIELDS.COUNTRY} FROM ${USER_TABLE} WHERE ${USER_FIELDS.ID} = ?`, [userId]);
+      if (userResult.length === 0) {
+        return { success: false, error: 'User not found' };
+      }
     }
+    
     const user = userResult[0];
-    const userDob = user.dob;
+    userDob = user.dob;
+    userCountry = user.country;
 
     if (!userDob) {
-      return { success: false, error: 'User Date of Birth is required to generate vaccine schedule' };
+      return { success: false, error: 'Date of Birth is required to generate vaccine schedule' };
     }
 
     const birthDate = new Date(userDob);
@@ -129,7 +143,12 @@ export const generateUserVaccines = async (userId) => {
     `;
     const vaccines = await query(vaccinesSql, [maxAgeDays]);
 
-    await query(`DELETE FROM ${USER_VACCINES_TABLE} WHERE ${USER_VACCINES_FIELDS.USER_ID} = ?`, [userId]);
+    // Delete existing vaccines for user or dependent
+    if (dependentId) {
+      await query(`DELETE FROM ${USER_VACCINES_TABLE} WHERE ${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?`, [dependentId]);
+    } else {
+      await query(`DELETE FROM ${USER_VACCINES_TABLE} WHERE ${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL`, [userId]);
+    }
 
     let addedCount = 0;
     
@@ -147,25 +166,30 @@ export const generateUserVaccines = async (userId) => {
               ${USER_VACCINES_FIELDS.VACCINE_ID},
               ${USER_VACCINES_FIELDS.SCHEDULED_DATE},
               ${USER_VACCINES_FIELDS.STATUS},
-              ${USER_VACCINES_FIELDS.DOSE_NUMBER}
-            ) VALUES (?, ?, ?, ?, ?)
+              ${USER_VACCINES_FIELDS.DOSE_NUMBER},
+              ${USER_VACCINES_FIELDS.DEPENDENT_ID}
+            ) VALUES (?, ?, ?, ?, ?, ?)
           `;
           await query(insertSql, [
             userId,
             dose.vaccine_id,
             scheduledDate.toISOString().split('T')[0],
             'pending',
-            dose.dose_number
+            dose.dose_number,
+            dependentId
           ]);
           addedCount++;
         }
       }
     }
 
-    logger.info(`Generated ${addedCount} vaccine doses for user ${userId}`);
+    const logMessage = dependentId ? 
+      `Generated ${addedCount} vaccine doses for dependent ${dependentId}` :
+      `Generated ${addedCount} vaccine doses for user ${userId}`;
+    logger.info(logMessage);
     
     if (addedCount > 0) {
-      await updateAllVaccineStatuses(userId);
+      await updateAllVaccineStatuses(userId, dependentId);
     }
     
     return { success: true, addedCount };
@@ -175,9 +199,9 @@ export const generateUserVaccines = async (userId) => {
   }
 };
 
-export const getUserVaccines = async (userId, excludeCompleted = false) => {
+export const getUserVaccines = async (userId, excludeCompleted = false, dependentId = null) => {
   try {
-    await updateAllVaccineStatuses(userId);
+    await updateAllVaccineStatuses(userId, dependentId);
     
     const currentDate = new Date();
     const twoYearsFromNow = new Date();
@@ -187,6 +211,18 @@ export const getUserVaccines = async (userId, excludeCompleted = false) => {
     let statusFilter = '';
     if (excludeCompleted) {
       statusFilter = ` AND uv.${USER_VACCINES_FIELDS.STATUS} != 'completed'`;
+    }
+    
+    // Build WHERE clause based on whether it's for user or dependent
+    let whereClause = '';
+    let params = [];
+    
+    if (dependentId) {
+      whereClause = `WHERE uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} = ? AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}`;
+      params = [dependentId, maxDate];
+    } else {
+      whereClause = `WHERE uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}`;
+      params = [userId, maxDate];
     }
     
     const sql = `
@@ -200,16 +236,15 @@ export const getUserVaccines = async (userId, excludeCompleted = false) => {
         uv.${USER_VACCINES_FIELDS.CITY_ID},
         uv.${USER_VACCINES_FIELDS.IMAGE_URL},
         uv.${USER_VACCINES_FIELDS.NOTES},
+        uv.${USER_VACCINES_FIELDS.DEPENDENT_ID},
         c.${CITIES_FIELDS.CITY_NAME}
       FROM ${USER_VACCINES_TABLE} uv
       LEFT JOIN ${CITIES_TABLE} c ON uv.${USER_VACCINES_FIELDS.CITY_ID} = c.${CITIES_FIELDS.CITY_ID}
-      WHERE uv.${USER_VACCINES_FIELDS.USER_ID} = ? 
-      AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
-      AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}
+      ${whereClause}
       ORDER BY uv.${USER_VACCINES_FIELDS.VACCINE_ID}, uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} ASC
     `;
     
-    const vaccines = await query(sql, [userId, maxDate]);
+    const vaccines = await query(sql, params);
     const formattedVaccines = [];
     
     for (const vaccine of vaccines) {
@@ -364,18 +399,28 @@ export const calculateVaccineStatus = (scheduledDate, currentDate) => {
   }
 };
 
-export const updateAllVaccineStatuses = async (userId) => {
+export const updateAllVaccineStatuses = async (userId, dependentId = null) => {
   try {
     const currentDate = new Date().toISOString().split('T')[0];
+    
+    let whereClause = '';
+    let params = [];
+    
+    if (dependentId) {
+      whereClause = `WHERE ${USER_VACCINES_FIELDS.DEPENDENT_ID} = ? AND ${USER_VACCINES_FIELDS.STATUS} != 'completed' AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true`;
+      params = [dependentId];
+    } else {
+      whereClause = `WHERE ${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL AND ${USER_VACCINES_FIELDS.STATUS} != 'completed' AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true`;
+      params = [userId];
+    }
+    
     const sql = `
       SELECT ${USER_VACCINES_FIELDS.USER_VACCINE_ID}, ${USER_VACCINES_FIELDS.SCHEDULED_DATE}, ${USER_VACCINES_FIELDS.STATUS}
       FROM ${USER_VACCINES_TABLE}
-      WHERE ${USER_VACCINES_FIELDS.USER_ID} = ? 
-      AND ${USER_VACCINES_FIELDS.STATUS} != 'completed'
-      AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+      ${whereClause}
     `;
     
-    const vaccines = await query(sql, [userId]);
+    const vaccines = await query(sql, params);
     let updatedCount = 0;
     
     for (const vaccine of vaccines) {
@@ -398,7 +443,10 @@ export const updateAllVaccineStatuses = async (userId) => {
       }
     }
     
-    logger.info(`Updated vaccine statuses for user ${userId}: ${updatedCount}/${vaccines.length} vaccines processed`);
+    const logMessage = dependentId ? 
+      `Updated vaccine statuses for dependent ${dependentId}: ${updatedCount}/${vaccines.length} vaccines processed` :
+      `Updated vaccine statuses for user ${userId}: ${updatedCount}/${vaccines.length} vaccines processed`;
+    logger.info(logMessage);
     return { success: true, updated_count: updatedCount };
   } catch (error) {
     logger.error('Update all vaccine statuses error:', error);
