@@ -6,10 +6,12 @@ import { COUNTRIES_SCHEMA } from '../models/countries_model.js';
 import { CITIES_SCHEMA } from '../models/cities_model.js';
 import { VACCINE_SCHEDULE_SCHEMA } from '../models/vaccine_schedule_model.js';
 import { VACCINE_REMINDERS_SCHEMA } from '../models/vaccine_reminders_model.js';
+import { RELATIONSHIPS_SCHEMA } from '../models/relationships_model.js';
 import { seedVaccinesData } from '../services/vaccines_service.js';
 import { seedCountriesData } from '../services/countries_service.js';
 import { seedCitiesData } from '../services/cities_service.js';
 import { seedVaccineScheduleData } from '../services/vaccine_schedule_service.js';
+import { seedRelationshipsData } from '../services/relationships_service.js';
 import logger from '../config/logger.js';
 
 export const initializeDatabase = async () => {
@@ -27,11 +29,13 @@ export const initializeDatabase = async () => {
     await query(VACCINE_SCHEDULE_SCHEMA);
     await query(USER_VACCINES_SCHEMA);
     await query(VACCINE_REMINDERS_SCHEMA);
+    await query(RELATIONSHIPS_SCHEMA);
 
     await seedVaccinesData();
     await seedCountriesData();
     await seedCitiesData();
     await seedVaccineScheduleData();
+    await seedRelationshipsData();
     
     logger.info('Database tables initialized successfully');
     

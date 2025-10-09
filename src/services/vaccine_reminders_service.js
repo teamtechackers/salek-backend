@@ -8,6 +8,31 @@ export const addVaccineReminder = async (userVaccineId, reminderData) => {
   try {
     const { title, message, date, time, frequency } = reminderData;
     
+    // Check for duplicate reminder (same user_vaccine_id, date, and time)
+    const checkDuplicateSql = `
+      SELECT ${VACCINE_REMINDERS_FIELDS.REMINDER_ID}
+      FROM ${VACCINE_REMINDERS_TABLE}
+      WHERE ${VACCINE_REMINDERS_FIELDS.USER_VACCINE_ID} = ?
+      AND ${VACCINE_REMINDERS_FIELDS.REMINDER_DATE} = ?
+      AND ${VACCINE_REMINDERS_FIELDS.REMINDER_TIME} = ?
+      AND ${VACCINE_REMINDERS_FIELDS.IS_ACTIVE} = true
+      AND ${VACCINE_REMINDERS_FIELDS.STATUS} = 'active'
+    `;
+    
+    const normalizedTime = time || '09:00:00';
+    const existingReminders = await query(checkDuplicateSql, [
+      userVaccineId,
+      date,
+      normalizedTime
+    ]);
+    
+    if (existingReminders.length > 0) {
+      return { 
+        success: false, 
+        error: 'A reminder with the same date and time already exists for this vaccine' 
+      };
+    }
+    
     const sql = `
       INSERT INTO ${VACCINE_REMINDERS_TABLE} (
         ${VACCINE_REMINDERS_FIELDS.USER_VACCINE_ID},
@@ -24,7 +49,7 @@ export const addVaccineReminder = async (userVaccineId, reminderData) => {
       title,
       message || null,
       date,
-      time || '09:00:00',
+      normalizedTime,
       frequency || 'once'
     ]);
     

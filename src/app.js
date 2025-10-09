@@ -7,6 +7,7 @@ import vaccinesRoutes from './api/routes/vaccines_routes.js';
 import notificationPermissionsRoutes from './api/routes/notification_permissions_routes.js';
 import dashboardRoutes from './api/routes/dashboard_routes.js';
 import dependentsRoutes from './api/routes/dependents_routes.js';
+import relationshipsRoutes from './api/routes/relationships_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/vaccines', vaccinesRoutes);
 app.use('/api/notifications', notificationPermissionsRoutes);
 app.use('/api/dependents', dependentsRoutes);
+app.use('/api/relationships', relationshipsRoutes);
 app.use('/api', dashboardRoutes);
 
 export default app;

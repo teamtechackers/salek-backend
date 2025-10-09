@@ -13,7 +13,8 @@ import logger from '../../config/logger.js';
 export const addDependentAPI = async (req, res) => {
   try {
     const { 
-      user_id, 
+      user_id,
+      relation_id,
       full_name, 
       dob, 
       gender, 
@@ -51,6 +52,7 @@ export const addDependentAPI = async (req, res) => {
 
     const dependentData = {
       userId: actualUserId,
+      relationId: relation_id ? parseInt(relation_id) : null,
       fullName: full_name,
       dob: dob,
       gender: gender,
@@ -94,6 +96,7 @@ export const addDependentAPI = async (req, res) => {
         dependent_id: result.dependentId,
         encrypted_dependent_id: encryptUserId(result.dependentId),
         dependent: {
+          relation_id: relation_id ? parseInt(relation_id) : null,
           full_name: full_name,
           dob: dob,
           gender: gender,
@@ -166,6 +169,8 @@ export const getDependentsAPI = async (req, res) => {
         dependents: result.dependents.map(dependent => ({
           dependent_id: dependent.dependent_id,
           encrypted_dependent_id: encryptUserId(dependent.dependent_id),
+          relation_id: dependent.relation_id,
+          relation_type: dependent.relation_type,
           full_name: dependent.full_name,
           dob: dependent.dob,
           gender: dependent.gender,

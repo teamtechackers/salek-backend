@@ -98,6 +98,22 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       });
     }
 
+    // Check if user profile is complete (DOB is required for vaccines)
+    const user = userExists.user;
+    if (!user.dob || !user.profile_completed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile not complete. Please complete your profile with date of birth to view vaccine schedule.',
+        data: {
+          profile_completed: false,
+          missing_fields: {
+            dob: !user.dob,
+            full_name: !user.full_name
+          }
+        }
+      });
+    }
+
     // If a specific status is requested, keep legacy behavior to filter by status
     if (status) {
       const validStatuses = Object.values(VACCINE_STATUS);
@@ -306,9 +322,11 @@ export const addReminderAPI = async (req, res) => {
     const result = await addVaccineReminder(user_vaccine_id, reminderData);
 
     if (!result.success) {
-      return res.status(500).json({
+      // Check if it's a duplicate reminder error
+      const isDuplicate = result.error && result.error.includes('already exists');
+      return res.status(isDuplicate ? 409 : 500).json({
         success: false,
-        message: result.error
+        message: result.error || 'Failed to add reminder'
       });
     }
 
@@ -1373,6 +1391,22 @@ export const getDependentVaccinesAPI = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Dependent does not belong to this user'
+      });
+    }
+
+    // Check if dependent profile is complete (DOB is required for vaccines)
+    if (!dependent.dob || !dependent.profile_completed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dependent profile not complete. Please complete dependent profile with date of birth to view vaccine schedule.',
+        data: {
+          dependent_id: actualDependentId,
+          profile_completed: false,
+          missing_fields: {
+            dob: !dependent.dob,
+            full_name: !dependent.full_name
+          }
+        }
       });
     }
 

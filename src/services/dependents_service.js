@@ -8,6 +8,7 @@ export const addDependent = async (dependentData) => {
     const sql = `
       INSERT INTO ${DEPENDENTS_TABLE} (
         ${DEPENDENTS_FIELDS.USER_ID},
+        ${DEPENDENTS_FIELDS.RELATION_ID},
         ${DEPENDENTS_FIELDS.PHONE_NUMBER},
         ${DEPENDENTS_FIELDS.FULL_NAME},
         ${DEPENDENTS_FIELDS.DOB},
@@ -21,11 +22,12 @@ export const addDependent = async (dependentData) => {
         ${DEPENDENTS_FIELDS.ARE_YOU_PREGNANT},
         ${DEPENDENTS_FIELDS.PREGNANCY_DETAIL},
         ${DEPENDENTS_FIELDS.PROFILE_COMPLETED}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
       dependentData.userId,
+      dependentData.relationId || null,
       dependentData.phoneNumber || null,
       dependentData.fullName || null,
       dependentData.dob || null,
@@ -62,9 +64,14 @@ export const addDependent = async (dependentData) => {
 export const getDependentsByUserId = async (userId) => {
   try {
     const sql = `
-      SELECT * FROM ${DEPENDENTS_TABLE} 
-      WHERE ${DEPENDENTS_FIELDS.USER_ID} = ? AND ${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
-      ORDER BY ${DEPENDENTS_FIELDS.CREATED_AT} DESC
+      SELECT 
+        d.*,
+        r.relation_type
+      FROM ${DEPENDENTS_TABLE} d
+      LEFT JOIN relationships r ON d.${DEPENDENTS_FIELDS.RELATION_ID} = r.id
+      WHERE d.${DEPENDENTS_FIELDS.USER_ID} = ? 
+      AND d.${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
+      ORDER BY d.${DEPENDENTS_FIELDS.CREATED_AT} DESC
     `;
     
     const result = await query(sql, [userId]);
@@ -87,8 +94,13 @@ export const getDependentsByUserId = async (userId) => {
 export const getDependentById = async (dependentId) => {
   try {
     const sql = `
-      SELECT * FROM ${DEPENDENTS_TABLE} 
-      WHERE ${DEPENDENTS_FIELDS.DEPENDENT_ID} = ? AND ${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
+      SELECT 
+        d.*,
+        r.relation_type
+      FROM ${DEPENDENTS_TABLE} d
+      LEFT JOIN relationships r ON d.${DEPENDENTS_FIELDS.RELATION_ID} = r.id
+      WHERE d.${DEPENDENTS_FIELDS.DEPENDENT_ID} = ? 
+      AND d.${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
     `;
     
     const result = await query(sql, [dependentId]);
