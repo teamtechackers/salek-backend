@@ -1639,3 +1639,127 @@ export const getDependentVaccineRecordsAPI = async (req, res) => {
     });
   }
 };
+
+// Mark dependent vaccines as taken
+export const markDependentVaccinesAsTaken = async (req, res) => {
+  try {
+    const { user_id, dependent_id, user_vaccine_ids, completed_date, city_id, image_url, notes } = req.body;
+
+    if (!user_id || !dependent_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id and dependent_id are required'
+      });
+    }
+
+    if (!user_vaccine_ids || !Array.isArray(user_vaccine_ids) || user_vaccine_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_vaccine_ids array is required'
+      });
+    }
+
+    // Decrypt user ID
+    const actualUserId = decryptUserId(user_id);
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    // Parse dependent ID
+    const actualDependentId = parseInt(dependent_id);
+    if (!actualDependentId || isNaN(actualDependentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid dependent ID format'
+      });
+    }
+
+    // Verify user exists
+    const userResult = await getUserById(actualUserId);
+    if (!userResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify dependent exists and belongs to user
+    const dependentResult = await getDependentById(actualDependentId);
+    if (!dependentResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dependent not found'
+      });
+    }
+
+    if (dependentResult.dependent.user_id !== actualUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Dependent does not belong to this user'
+      });
+    }
+
+    const updatedVaccines = [];
+    const failedUpdates = [];
+
+    // Update each vaccine status
+    for (const userVaccineId of user_vaccine_ids) {
+      try {
+        const result = await updateVaccineStatus(
+          userVaccineId, 
+          VACCINE_STATUS.COMPLETED,
+          completed_date || null,
+          city_id || null,
+          image_url || null,
+          notes || null
+        );
+
+        if (result.success) {
+          updatedVaccines.push({
+            user_vaccine_id: userVaccineId,
+            status: 'completed',
+            completed_date: completed_date || new Date().toISOString().split('T')[0]
+          });
+        } else {
+          failedUpdates.push({
+            user_vaccine_id: userVaccineId,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        failedUpdates.push({
+          user_vaccine_id: userVaccineId,
+          error: error.message
+        });
+      }
+    }
+
+    logger.info(`Bulk dependent vaccine status update: User ${actualUserId}, Dependent ${actualDependentId}, Updated: ${updatedVaccines.length}, Failed: ${failedUpdates.length}`);
+
+    return res.status(200).json({
+      success: true,
+      message: `${updatedVaccines.length} dependent vaccines marked as taken successfully`,
+      data: {
+        user_id: encryptUserId(actualUserId),
+        dependent_id: actualDependentId,
+        updated_vaccines: updatedVaccines,
+        failed_updates: failedUpdates,
+        summary: {
+          total_requested: user_vaccine_ids.length,
+          successfully_updated: updatedVaccines.length,
+          failed: failedUpdates.length
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Mark dependent vaccines as taken error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};

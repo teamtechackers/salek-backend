@@ -21,7 +21,8 @@ import {
   addVaccineAPI,
   getDependentVaccinesAPI,
   addDependentVaccineRecordAPI,
-  getDependentVaccineRecordsAPI
+  getDependentVaccineRecordsAPI,
+  markDependentVaccinesAsTaken
 } from '../controllers/vaccines_controller.js';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { uploadVaccineImage } from '../../middleware/upload_middleware.js';
@@ -56,5 +57,6 @@ router.get('/hospitals', getHospitalsAPI);
 router.get('/get-dependent-vaccines', getDependentVaccinesAPI);
 router.post('/add-dependent-record', uploadVaccineImage, addDependentVaccineRecordAPI);
 router.get('/get-dependent-records', getDependentVaccineRecordsAPI);
+router.put('/mark-vaccines-taken-dependent', markDependentVaccinesAsTaken);
 
 export default router;
