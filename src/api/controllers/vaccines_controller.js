@@ -17,7 +17,8 @@ import {
 } from '../../services/vaccine_reminders_service.js';
 import { getUserById } from '../../services/user_service.js';
 import { encryptUserId, decryptUserId } from '../../services/encryption_service.js';
-import { VACCINE_STATUS } from '../../models/user_vaccines_model.js';
+import { VACCINE_STATUS, USER_VACCINES_TABLE, USER_VACCINES_FIELDS } from '../../models/user_vaccines_model.js';
+import { query } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import { getAllCountries } from '../../services/countries_service.js';
 import { getAllCities, getCitiesByCountry } from '../../services/cities_service.js';
@@ -554,9 +555,24 @@ export const markVaccinesAsTaken = async (req, res) => {
     const updatedVaccines = [];
     const failedUpdates = [];
 
-    // Update each vaccine status
+    // Update each vaccine status (only user's own vaccines where dependent_id IS NULL)
     for (const userVaccineId of user_vaccine_ids) {
       try {
+        // Ownership check
+        const checkSql = `
+          SELECT ${USER_VACCINES_FIELDS.USER_VACCINE_ID}
+          FROM ${USER_VACCINES_TABLE}
+          WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?
+            AND ${USER_VACCINES_FIELDS.USER_ID} = ?
+            AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL
+            AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+        `;
+        const checkRows = await query(checkSql, [userVaccineId, actualUserId]);
+        if (checkRows.length === 0) {
+          failedUpdates.push({ user_vaccine_id: userVaccineId, error: 'Not authorized for this vaccine or not a user vaccine' });
+          continue;
+        }
+
         const result = await updateVaccineStatus(
           userVaccineId, 
           VACCINE_STATUS.COMPLETED,
@@ -1705,9 +1721,24 @@ export const markDependentVaccinesAsTaken = async (req, res) => {
     const updatedVaccines = [];
     const failedUpdates = [];
 
-    // Update each vaccine status
+    // Update each vaccine status (only vaccines that belong to this dependent)
     for (const userVaccineId of user_vaccine_ids) {
       try {
+        // Ownership check for dependent
+        const checkSql = `
+          SELECT ${USER_VACCINES_FIELDS.USER_VACCINE_ID}
+          FROM ${USER_VACCINES_TABLE}
+          WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?
+            AND ${USER_VACCINES_FIELDS.USER_ID} = ?
+            AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?
+            AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+        `;
+        const checkRows = await query(checkSql, [userVaccineId, actualUserId, actualDependentId]);
+        if (checkRows.length === 0) {
+          failedUpdates.push({ user_vaccine_id: userVaccineId, error: 'Not authorized for this vaccine or not a dependent vaccine' });
+          continue;
+        }
+
         const result = await updateVaccineStatus(
           userVaccineId, 
           VACCINE_STATUS.COMPLETED,

@@ -308,9 +308,9 @@ export const getUserVaccines = async (userId, excludeCompleted = false, dependen
 };
 
 // New: grouped by type with optional type filter
-export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = false, typeFilter) => {
+export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = false, typeFilter, dependentId = null) => {
   try {
-    await updateAllVaccineStatuses(userId);
+    await updateAllVaccineStatuses(userId, dependentId);
 
     const currentDate = new Date();
     const twoYearsFromNow = new Date();
@@ -323,7 +323,16 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
     }
 
     let typeCondition = '';
-    const params = [userId, maxDate];
+    let params = [];
+    let baseWhere = '';
+
+    if (dependentId) {
+      baseWhere = `uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} = ? AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true`;
+      params = [dependentId, maxDate];
+    } else {
+      baseWhere = `uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true`;
+      params = [userId, maxDate];
+    }
     if (typeFilter) {
       typeCondition = ` AND v.${VACCINES_FIELDS.TYPE} = ?`;
       params.push(typeFilter);
@@ -344,9 +353,7 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
         v.${VACCINES_FIELDS.NAME} as vaccine_name
       FROM ${USER_VACCINES_TABLE} uv
       INNER JOIN ${VACCINES_TABLE} v ON uv.${USER_VACCINES_FIELDS.VACCINE_ID} = v.${VACCINES_FIELDS.VACCINE_ID}
-      WHERE uv.${USER_VACCINES_FIELDS.USER_ID} = ?
-      AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL
-      AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+      WHERE ${baseWhere}
       AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?${statusFilter}${typeCondition}
       ORDER BY v.${VACCINES_FIELDS.TYPE} ASC, uv.${USER_VACCINES_FIELDS.VACCINE_ID}, uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} ASC
     `;
