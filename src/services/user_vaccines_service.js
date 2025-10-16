@@ -673,9 +673,9 @@ export const deleteVaccineReminder = async (userVaccineId) => {
   }
 };
 
-export const getUserVaccineRecords = async (userId) => {
+export const getUserVaccineRecords = async (userId, dependentId = null) => {
   try {
-    const sql = `
+    let sql = `
       SELECT 
         uv.user_vaccine_id,
         uv.dose_number,
@@ -686,10 +686,20 @@ export const getUserVaccineRecords = async (userId) => {
         uv.created_at
       FROM ${USER_VACCINES_TABLE} uv
       WHERE uv.user_id = ? AND uv.status = 'completed'
-      ORDER BY uv.completed_date DESC, uv.created_at DESC
     `;
     
-    const result = await query(sql, [userId]);
+    let params = [userId];
+    
+    if (dependentId) {
+      sql += ` AND uv.dependent_id = ?`;
+      params.push(dependentId);
+    } else {
+      sql += ` AND uv.dependent_id IS NULL`;
+    }
+    
+    sql += ` ORDER BY uv.completed_date DESC, uv.created_at DESC`;
+    
+    const result = await query(sql, params);
     
     const records = result.map(record => ({
       user_vaccine_id: record.user_vaccine_id,
@@ -701,7 +711,10 @@ export const getUserVaccineRecords = async (userId) => {
       created_at: record.created_at
     }));
     
-    logger.info(`Fetched ${records.length} completed vaccine records for user: ${userId}`);
+    const logMessage = dependentId ? 
+      `Fetched ${records.length} completed vaccine records for dependent ${dependentId}` :
+      `Fetched ${records.length} completed vaccine records for user: ${userId}`;
+    logger.info(logMessage);
     return { success: true, records };
   } catch (error) {
     logger.error('Get user vaccine records error:', error);

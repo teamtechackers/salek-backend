@@ -2,6 +2,8 @@ import { query } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import { decryptUserId } from '../../services/encryption_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
+import { getUserVaccinesGroupedByType } from '../../services/user_vaccines_service.js';
+import { getDependentsByUserId } from '../../services/dependents_service.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -132,6 +134,559 @@ export const getAdminUsersList = async (req, res) => {
   } catch (error) {
     logger.error('getAdminUsersList error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const getAdminUserDetails = async (req, res) => {
+  try {
+    const { user_id, admin_user_id } = req.query;
+    
+    if (!user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'user_id query parameter is required' 
+      });
+    }
+
+    if (!admin_user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'admin_user_id query parameter is required' 
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin user ID mismatch' 
+      });
+    }
+
+    // Get target user ID
+    let userId;
+    if (isNaN(user_id)) {
+      // Encrypted user ID
+      userId = decryptUserId(user_id);
+    } else {
+      // Numeric user ID
+      userId = parseInt(user_id, 10);
+    }
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid user_id format' 
+      });
+    }
+
+    // Get user details
+    const userSql = `
+      SELECT id, phone_number, full_name, dob, gender, country, address, 
+             contact_no, material_status, do_you_have_children, how_many_children,
+             are_you_pregnant, pregnancy_detail, profile_completed, created_at, updated_at
+      FROM users 
+      WHERE id = ? AND is_active = 1
+    `;
+    const userRows = await query(userSql, [userId]);
+    
+    if (!userRows || userRows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const user = userRows[0];
+
+    // Get user's dependents
+    const dependentsResult = await getDependentsByUserId(userId);
+    const dependents = dependentsResult?.dependents || [];
+
+    // Get user's vaccines grouped by status
+    const vaccinesData = await getUserVaccinesGroupedByType(userId, false, null, null);
+    
+    // Organize vaccines by status
+    const vaccines = {
+      completed: [],
+      upcoming: [],
+      dueSoon: [],
+      overdue: []
+    };
+
+    // Process all vaccine groups and categorize by status
+    Object.values(vaccinesData.groups || {}).forEach(vaccineList => {
+      vaccineList.forEach(vaccine => {
+        switch (vaccine.status) {
+          case 'completed':
+            vaccines.completed.push(vaccine);
+            break;
+          case 'upcoming':
+            vaccines.upcoming.push(vaccine);
+            break;
+          case 'due_soon':
+            vaccines.dueSoon.push(vaccine);
+            break;
+          case 'overdue':
+            vaccines.overdue.push(vaccine);
+            break;
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'User details fetched successfully',
+      data: {
+        user: {
+          id: user.id,
+          full_name: user.full_name,
+          phone_number: user.phone_number,
+          dob: user.dob,
+          gender: user.gender,
+          country: user.country,
+          address: user.address,
+          contact_no: user.contact_no,
+          material_status: user.material_status,
+          do_you_have_children: user.do_you_have_children,
+          how_many_children: user.how_many_children,
+          are_you_pregnant: user.are_you_pregnant,
+          pregnancy_detail: user.pregnancy_detail,
+          profile_completed: !!user.profile_completed,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        },
+        dependents: dependents.map(dep => ({
+          id: dep.id,
+          user_id: dep.user_id,
+          full_name: dep.full_name,
+          dob: dep.dob,
+          gender: dep.gender,
+          relation_type: dep.relation_type,
+          created_at: dep.created_at
+        })),
+        vaccines
+      }
+    });
+
+  } catch (error) {
+    logger.error('getAdminUserDetails error:', error);
+    console.error('getAdminUserDetails error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
+  }
+};
+
+export const getAdminAllVaccines = async (req, res) => {
+  try {
+    const { admin_user_id, page = 0, limit = 50, search, type, category } = req.query;
+    
+    if (!admin_user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'admin_user_id query parameter is required' 
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin user ID mismatch' 
+      });
+    }
+
+    // Pagination
+    const pageNum = Math.max(parseInt(page, 10) || 0, 0);
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+    const offset = pageNum * pageSize;
+
+    // Build WHERE clause
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+
+    if (search) {
+      whereClause += ' AND (name LIKE ? OR type LIKE ? OR category LIKE ? OR sub_category LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    if (type) {
+      whereClause += ' AND type = ?';
+      params.push(type);
+    }
+
+    if (category) {
+      whereClause += ' AND category = ?';
+      params.push(category);
+    }
+
+    // Get total count
+    const countSql = `SELECT COUNT(*) AS total FROM vaccines ${whereClause}`;
+    const [countRow] = await query(countSql, params);
+    const total = countRow?.total || 0;
+
+    // Get vaccines with pagination
+    const vaccinesSql = `
+      SELECT 
+        vaccine_id,
+        name,
+        type,
+        category,
+        sub_category,
+        min_age_months,
+        max_age_months,
+        total_doses,
+        frequency,
+        when_to_give,
+        dose,
+        route,
+        site,
+        notes,
+        created_at,
+        updated_at
+      FROM vaccines 
+      ${whereClause}
+      ORDER BY type ASC, category ASC, name ASC
+      LIMIT ${Number(offset)}, ${Number(pageSize)}
+    `;
+    
+    const vaccines = await query(vaccinesSql, params);
+
+    // Get vaccine types for filter options
+    const typesSql = `SELECT DISTINCT type FROM vaccines ORDER BY type ASC`;
+    const types = await query(typesSql);
+
+    // Get vaccine categories for filter options
+    const categoriesSql = `SELECT DISTINCT category FROM vaccines ORDER BY category ASC`;
+    const categories = await query(categoriesSql);
+
+    logger.info(`Admin fetched all vaccines: ${vaccines.length} vaccines, page ${pageNum + 1}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'All vaccines fetched successfully',
+      data: {
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          total,
+          pages: Math.ceil(total / pageSize),
+          range: {
+            start_index: offset,
+            end_index: Math.min(offset + pageSize - 1, Math.max(total - 1, 0))
+          }
+        },
+        filters: {
+          types: types.map(t => t.type),
+          categories: categories.map(c => c.category)
+        },
+        vaccines: vaccines.map(vaccine => ({
+          vaccine_id: vaccine.vaccine_id,
+          name: vaccine.name,
+          type: vaccine.type,
+          category: vaccine.category,
+          sub_category: vaccine.sub_category,
+          age_range: {
+            min_age_months: vaccine.min_age_months,
+            max_age_months: vaccine.max_age_months
+          },
+          doses: {
+            total_doses: vaccine.total_doses,
+            frequency: vaccine.frequency
+          },
+          details: {
+            when_to_give: vaccine.when_to_give,
+            dose: vaccine.dose,
+            route: vaccine.route,
+            site: vaccine.site,
+            notes: vaccine.notes
+          },
+          created_at: vaccine.created_at,
+          updated_at: vaccine.updated_at
+        })),
+        summary: {
+          total_vaccines: total,
+          current_page_count: vaccines.length
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('getAdminAllVaccines error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
+  }
+};
+
+export const updateAdminVaccine = async (req, res) => {
+  try {
+    const { 
+      admin_user_id, 
+      vaccine_id,
+      name,
+      type,
+      category,
+      sub_category,
+      min_age_months,
+      max_age_months,
+      total_doses,
+      frequency,
+      when_to_give,
+      dose,
+      route,
+      site,
+      notes
+    } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'admin_user_id is required' 
+      });
+    }
+
+    if (!vaccine_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'vaccine_id is required' 
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin user ID mismatch' 
+      });
+    }
+
+    // Check if vaccine exists
+    const checkSql = `SELECT vaccine_id FROM vaccines WHERE vaccine_id = ?`;
+    const [existingVaccine] = await query(checkSql, [vaccine_id]);
+    
+    if (!existingVaccine) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Vaccine not found' 
+      });
+    }
+
+    // Build update query dynamically
+    const updateFields = [];
+    const updateValues = [];
+
+    if (name !== undefined) {
+      updateFields.push('name = ?');
+      updateValues.push(name);
+    }
+    if (type !== undefined) {
+      updateFields.push('type = ?');
+      updateValues.push(type);
+    }
+    if (category !== undefined) {
+      updateFields.push('category = ?');
+      updateValues.push(category);
+    }
+    if (sub_category !== undefined) {
+      updateFields.push('sub_category = ?');
+      updateValues.push(sub_category);
+    }
+    if (min_age_months !== undefined) {
+      updateFields.push('min_age_months = ?');
+      updateValues.push(parseInt(min_age_months) || 0);
+    }
+    if (max_age_months !== undefined) {
+      updateFields.push('max_age_months = ?');
+      updateValues.push(max_age_months ? parseInt(max_age_months) : null);
+    }
+    if (total_doses !== undefined) {
+      updateFields.push('total_doses = ?');
+      updateValues.push(total_doses ? parseInt(total_doses) : null);
+    }
+    if (frequency !== undefined) {
+      updateFields.push('frequency = ?');
+      updateValues.push(frequency);
+    }
+    if (when_to_give !== undefined) {
+      updateFields.push('when_to_give = ?');
+      updateValues.push(when_to_give);
+    }
+    if (dose !== undefined) {
+      updateFields.push('dose = ?');
+      updateValues.push(dose);
+    }
+    if (route !== undefined) {
+      updateFields.push('route = ?');
+      updateValues.push(route);
+    }
+    if (site !== undefined) {
+      updateFields.push('site = ?');
+      updateValues.push(site);
+    }
+    if (notes !== undefined) {
+      updateFields.push('notes = ?');
+      updateValues.push(notes);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No fields to update' 
+      });
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(vaccine_id);
+
+    const updateSql = `
+      UPDATE vaccines 
+      SET ${updateFields.join(', ')}
+      WHERE vaccine_id = ?
+    `;
+
+    const result = await query(updateSql, updateValues);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Vaccine not found or no changes made' 
+      });
+    }
+
+    logger.info(`Admin updated vaccine: ${vaccine_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine updated successfully',
+      data: {
+        vaccine_id: parseInt(vaccine_id),
+        updated_fields: updateFields.length - 1, // Exclude updated_at
+        updated_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('updateAdminVaccine error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
+  }
+};
+
+export const deleteAdminVaccine = async (req, res) => {
+  try {
+    const { admin_user_id, vaccine_id } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'admin_user_id is required' 
+      });
+    }
+
+    if (!vaccine_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'vaccine_id is required' 
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin user ID mismatch' 
+      });
+    }
+
+    // Check if vaccine exists
+    const checkSql = `SELECT vaccine_id, name FROM vaccines WHERE vaccine_id = ?`;
+    const [existingVaccine] = await query(checkSql, [vaccine_id]);
+    
+    if (!existingVaccine) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Vaccine not found' 
+      });
+    }
+
+    // Soft delete - add a deleted flag (we'll use notes field to mark as deleted)
+    const deleteSql = `
+      UPDATE vaccines 
+      SET notes = CONCAT(IFNULL(notes, ''), ' [DELETED]'), updated_at = CURRENT_TIMESTAMP
+      WHERE vaccine_id = ?
+    `;
+
+    const result = await query(deleteSql, [vaccine_id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Vaccine not found' 
+      });
+    }
+
+    logger.info(`Admin soft deleted vaccine: ${vaccine_id} (${existingVaccine.name})`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine deleted successfully (soft delete)',
+      data: {
+        vaccine_id: parseInt(vaccine_id),
+        vaccine_name: existingVaccine.name,
+        deleted_at: new Date().toISOString(),
+        status: 'soft_deleted'
+      }
+    });
+
+  } catch (error) {
+    logger.error('deleteAdminVaccine error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
   }
 };
 

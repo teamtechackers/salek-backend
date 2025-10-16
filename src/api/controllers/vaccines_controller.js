@@ -1624,7 +1624,7 @@ export const getDependentVaccineRecordsAPI = async (req, res) => {
       });
     }
 
-    const result = await getUserVaccineRecords(actualDependentId);
+    const result = await getUserVaccineRecords(dependentResult.dependent.user_id, actualDependentId);
 
     if (!result.success) {
       return res.status(500).json({
