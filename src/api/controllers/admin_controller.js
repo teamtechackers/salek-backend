@@ -320,9 +320,9 @@ export const getAdminAllVaccines = async (req, res) => {
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
     const offset = pageNum * pageSize;
 
-    // Build WHERE clause
-    let whereClause = 'WHERE 1=1';
-    const params = [];
+    // Build WHERE clause - using soft delete with notes field
+    let whereClause = 'WHERE (notes IS NULL OR notes NOT LIKE ?)';
+    const params = ['%[DELETED]%'];
 
     if (search) {
       whereClause += ' AND (name LIKE ? OR type LIKE ? OR category LIKE ? OR sub_category LIKE ?)';
@@ -367,10 +367,11 @@ export const getAdminAllVaccines = async (req, res) => {
       FROM vaccines 
       ${whereClause}
       ORDER BY type ASC, category ASC, name ASC
-      LIMIT ${Number(offset)}, ${Number(pageSize)}
+      LIMIT ?, ?
     `;
     
-    const vaccines = await query(vaccinesSql, params);
+    const vaccinesParams = [...params, offset, pageSize];
+    const vaccines = await query(vaccinesSql, vaccinesParams);
 
     // Get vaccine types for filter options
     const typesSql = `SELECT DISTINCT type FROM vaccines ORDER BY type ASC`;
@@ -686,6 +687,291 @@ export const deleteAdminVaccine = async (req, res) => {
       success: false, 
       message: 'Internal server error',
       error: error.message 
+    });
+  }
+};
+
+export const updateAdminUser = async (req, res) => {
+  try {
+    const {
+      admin_user_id,
+      user_id,
+      full_name,
+      phone_number,
+      dob,
+      gender,
+      country,
+      address,
+      contact_no,
+      material_status,
+      do_you_have_children,
+      how_many_children,
+      are_you_pregnant,
+      pregnancy_detail
+    } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id is required'
+      });
+    }
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required'
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
+
+    // Get target user ID
+    let targetUserId;
+    if (isNaN(user_id)) {
+      targetUserId = decryptUserId(user_id);
+    } else {
+      targetUserId = parseInt(user_id, 10);
+    }
+
+    if (!targetUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format'
+      });
+    }
+
+    // Check if user exists
+    const checkSql = `SELECT id FROM users WHERE id = ? AND is_active = true`;
+    const [existingUser] = await query(checkSql, [targetUserId]);
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Build update query dynamically
+    const updateFields = [];
+    const updateValues = [];
+
+    if (full_name !== undefined) {
+      updateFields.push('full_name = ?');
+      updateValues.push(full_name);
+    }
+    if (phone_number !== undefined) {
+      updateFields.push('phone_number = ?');
+      updateValues.push(phone_number);
+    }
+    if (dob !== undefined) {
+      updateFields.push('dob = ?');
+      updateValues.push(dob);
+    }
+    if (gender !== undefined) {
+      updateFields.push('gender = ?');
+      updateValues.push(gender);
+    }
+    if (country !== undefined) {
+      updateFields.push('country = ?');
+      updateValues.push(country);
+    }
+    if (address !== undefined) {
+      updateFields.push('address = ?');
+      updateValues.push(address);
+    }
+    if (contact_no !== undefined) {
+      updateFields.push('contact_no = ?');
+      updateValues.push(contact_no);
+    }
+    if (material_status !== undefined) {
+      updateFields.push('material_status = ?');
+      updateValues.push(material_status);
+    }
+    if (do_you_have_children !== undefined) {
+      updateFields.push('do_you_have_children = ?');
+      updateValues.push(do_you_have_children ? 1 : 0);
+    }
+    if (how_many_children !== undefined) {
+      updateFields.push('how_many_children = ?');
+      updateValues.push(how_many_children);
+    }
+    if (are_you_pregnant !== undefined) {
+      updateFields.push('are_you_pregnant = ?');
+      updateValues.push(are_you_pregnant ? 1 : 0);
+    }
+    if (pregnancy_detail !== undefined) {
+      updateFields.push('pregnancy_detail = ?');
+      updateValues.push(pregnancy_detail);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update'
+      });
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(targetUserId);
+
+    const updateSql = `
+      UPDATE users
+      SET ${updateFields.join(', ')}
+      WHERE id = ?
+    `;
+
+    const result = await query(updateSql, updateValues);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found or no changes made'
+      });
+    }
+
+    logger.info(`Admin updated user: ${targetUserId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: {
+        user_id: targetUserId,
+        encrypted_user_id: encryptUserId(targetUserId),
+        updated_fields: updateFields.length - 1, // Exclude updated_at
+        updated_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('updateAdminUser error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+export const deleteAdminUser = async (req, res) => {
+  try {
+    const { admin_user_id, user_id } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id is required'
+      });
+    }
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required'
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
+
+    // Get target user ID
+    let targetUserId;
+    if (isNaN(user_id)) {
+      targetUserId = decryptUserId(user_id);
+    } else {
+      targetUserId = parseInt(user_id, 10);
+    }
+
+    if (!targetUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format'
+      });
+    }
+
+    // Check if user exists
+    const checkSql = `SELECT id, full_name FROM users WHERE id = ? AND is_active = true`;
+    const [existingUser] = await query(checkSql, [targetUserId]);
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Soft delete user - set is_active to false
+    const deleteSql = `
+      UPDATE users
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    const result = await query(deleteSql, [targetUserId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Also soft delete user's dependents
+    const deleteDependentsSql = `
+      UPDATE dependents
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ?
+    `;
+
+    await query(deleteDependentsSql, [targetUserId]);
+
+    logger.info(`Admin soft deleted user: ${targetUserId} (${existingUser.full_name})`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User deleted successfully (soft delete)',
+      data: {
+        user_id: targetUserId,
+        user_name: existingUser.full_name,
+        deleted_at: new Date().toISOString(),
+        status: 'soft_deleted',
+        dependents_also_deleted: true
+      }
+    });
+
+  } catch (error) {
+    logger.error('deleteAdminUser error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 };
