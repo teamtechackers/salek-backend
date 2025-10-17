@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { initializeDatabase } from './src/database/init.js';
 
 // Load environment variables
 dotenv.config();
@@ -64,8 +65,24 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    // Initialize database
+    const dbInitResult = await initializeDatabase();
+    if (!dbInitResult.success) {
+      console.error('Database initialization failed:', dbInitResult.error);
+      process.exit(1);
+    }
+    
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 export default app;
