@@ -11,16 +11,17 @@ const router = express.Router();
 
 const sendOtp = async (req, res) => {
   try {
-    const { phoneNumber } = req.body;
+    const { phoneNumber, phone_number } = req.body;
+    const phone = phoneNumber || phone_number;
 
-    if (!phoneNumber) {
+    if (!phone) {
       return res.status(400).json({
         success: false,
         message: 'Phone number is required'
       });
     }
 
-    const result = await sendOtpWithFallback(phoneNumber);
+    const result = await sendOtpWithFallback(phone);
 
     if (!result.success) {
       return res.status(400).json({
@@ -50,9 +51,10 @@ const sendOtp = async (req, res) => {
 
 const verifyOtpAndLogin = async (req, res) => {
   try {
-    const { sessionId, otpCode, phoneNumber } = req.body;
+    const { sessionId, otpCode, phoneNumber, phone_number } = req.body;
+    const phone = phoneNumber || phone_number;
 
-    if (!sessionId || !otpCode || !phoneNumber) {
+    if (!sessionId || !otpCode || !phone) {
       return res.status(400).json({
         success: false,
         message: 'Session ID, OTP code, and phone number are required'
@@ -60,7 +62,7 @@ const verifyOtpAndLogin = async (req, res) => {
     }
 
     // Verify OTP with Twilio
-    const otpResult = await verifyOtpWithFallback(sessionId, otpCode, phoneNumber);
+    const otpResult = await verifyOtpWithFallback(sessionId, otpCode, phone);
 
     if (!otpResult.success) {
       return res.status(401).json({
@@ -70,11 +72,11 @@ const verifyOtpAndLogin = async (req, res) => {
     }
 
     // Check if user exists
-    let userResult = await getUserByPhoneNumber(phoneNumber);
+    let userResult = await getUserByPhoneNumber(phone);
     
     if (!userResult.success) {
       // Create new user with phone number
-      const createResult = await createUser(phoneNumber);
+      const createResult = await createUser(phone);
       if (!createResult.success) {
         logger.error('Create user failed:', createResult.error);
         return res.status(500).json({
@@ -82,15 +84,15 @@ const verifyOtpAndLogin = async (req, res) => {
           message: 'Failed to create user: ' + createResult.error
         });
       }
-      userResult = await getUserByPhoneNumber(phoneNumber);
+      userResult = await getUserByPhoneNumber(phone);
     }
 
     const user = userResult.user;
     await updateUserLastLogin(user.id);
 
-    const jwtToken = generateToken({ userId: user.id, phoneNumber: phoneNumber });
+    const jwtToken = generateToken({ userId: user.id, phoneNumber: phone });
 
-    logger.info(`User logged in successfully: ${phoneNumber}`);
+    logger.info(`User logged in successfully: ${phone}`);
 
     const encryptedUserId = encryptUserId(user.id);
 
