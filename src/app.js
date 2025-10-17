@@ -27,12 +27,51 @@ app.use('/api/relationships', relationshipsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', dashboardRoutes);
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Salek Backend API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      user: '/api/user',
+      vaccines: '/api/vaccines',
+      dependents: '/api/dependents',
+      relationships: '/api/relationships',
+      admin: '/api/admin',
+      dashboard: '/api'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    availableEndpoints: {
+      root: '/',
+      health: '/health',
+      auth: '/api/auth',
+      user: '/api/user',
+      vaccines: '/api/vaccines',
+      dependents: '/api/dependents',
+      relationships: '/api/relationships',
+      admin: '/api/admin',
+      dashboard: '/api'
+    }
   });
 });
 
