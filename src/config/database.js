@@ -5,14 +5,17 @@ import logger from './logger.js';
 dotenv.config();
 
 const dbConfig = {
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: process.env.DB_HOST || 'mysql-2779d37e-usmaniqbal8625-00b8.d.aivencloud.com',
+  port: process.env.DB_PORT || 18718,
+  user: process.env.DB_USER || 'avnadmin',
+  password: process.env.DB_PASSWORD || 'AVNS_TCux6DEnM6zgNPeDLSJ',
+  database: process.env.DB_NAME || 'salek',
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  connectionLimit: 5,
+  queueLimit: 0,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -25,6 +28,7 @@ export const testConnection = async () => {
     return true;
   } catch (error) {
     logger.error('MySQL connection failed:', error);
+    console.error('Database connection error:', error.message);
     return false;
   }
 };

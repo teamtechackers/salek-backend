@@ -27,4 +27,13 @@ app.use('/api/relationships', relationshipsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', dashboardRoutes);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 export default app;
