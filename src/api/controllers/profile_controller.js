@@ -17,7 +17,8 @@ export const updateProfile = async (req, res) => {
       do_you_have_children,
       how_many_children,
       are_you_pregnant,
-      pregnancy_detail
+      pregnancy_detail,
+      years_ahead
     } = req.body;
 
     if (!user_id) {
@@ -70,7 +71,8 @@ export const updateProfile = async (req, res) => {
       pregnancyDetail: pregnancy_detail
     };
 
-    const result = await updateUserProfile(actualUserId, profileData);
+    const yearsAhead = parseInt(years_ahead) || 2; // Default 2 years
+    const result = await updateUserProfile(actualUserId, profileData, yearsAhead);
 
     if (!result.success) {
       return res.status(500).json({

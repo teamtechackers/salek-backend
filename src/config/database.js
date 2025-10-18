@@ -5,11 +5,11 @@ import logger from './logger.js';
 dotenv.config();
 
 const dbConfig = {
-  host: process.env.DB_HOST || 'mysql-2779d37e-usmaniqbal8625-00b8.d.aivencloud.com',
-  port: process.env.DB_PORT || 18718,
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_TCux6DEnM6zgNPeDLSJ',
-  database: process.env.DB_NAME || 'salek',
+  host: 'localhost',
+  port: 3306,
+  user: 'root',
+  password: '',
+  database: 'salek',
   waitForConnections: true,
   connectionLimit: 5,
   queueLimit: 0,

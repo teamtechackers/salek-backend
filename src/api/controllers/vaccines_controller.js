@@ -148,8 +148,9 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
 
     // Default: always return grouped by type when no status is provided
     const excludeCompletedFlag = exclude_completed === 'true';
+    const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
     const { getUserVaccinesGroupedByType } = await import('../../services/user_vaccines_service.js');
-    const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, type);
+    const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, type, null, yearsAhead);
 
     if (!grouped.success) {
       return res.status(500).json({ success: false, message: grouped.error });
@@ -1430,10 +1431,12 @@ export const getDependentVaccinesAPI = async (req, res) => {
     if (status) {
       result = await getUserVaccinesByStatus(actualUserId, status, actualDependentId);
     } else if (group_by === 'type' && type) {
-      result = await getUserVaccinesGroupedByType(actualUserId, false, type, actualDependentId);
+      const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
+      result = await getUserVaccinesGroupedByType(actualUserId, false, type, actualDependentId, yearsAhead);
     } else if (group_by === 'type' || group_by === undefined) {
       // Default to grouped by type for dependents
-      result = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId);
+      const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
+      result = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId, yearsAhead);
     } else {
       result = await getUserVaccines(actualUserId, false, actualDependentId);
     }

@@ -118,7 +118,7 @@ export const updateUserLastLogin = async (userId) => {
   }
 };
 
-export const updateUserProfile = async (userId, profileData) => {
+export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => {
   try {
     const {
       fullName,
@@ -174,7 +174,7 @@ export const updateUserProfile = async (userId, profileData) => {
     if (dob) {
       try {
         const { generateUserVaccines } = await import('./user_vaccines_service.js');
-        await generateUserVaccines(userId);
+        await generateUserVaccines(userId, null, yearsAhead);
         logger.info(`User vaccines auto-generated after profile update for user: ${userId}`);
       } catch (vaccineError) {
         logger.warn(`Failed to generate vaccines for user ${userId}:`, vaccineError.message);
@@ -197,7 +197,7 @@ export const getUserProfile = async (userId) => {
         ${USER_FIELDS.ID},
         ${USER_FIELDS.PHONE_NUMBER},
         ${USER_FIELDS.FULL_NAME},
-        ${USER_FIELDS.DOB},
+        DATE_FORMAT(${USER_FIELDS.DOB}, '%Y-%m-%d') as ${USER_FIELDS.DOB},
         ${USER_FIELDS.GENDER},
         ${USER_FIELDS.COUNTRY},
         ${USER_FIELDS.ADDRESS},
