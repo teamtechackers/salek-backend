@@ -356,15 +356,10 @@ export const generateUserVaccines = async (userId, dependentId = null, yearsAhea
           status = 'upcoming'; // All future vaccines (30+ days)
         }
         
-        // Schedule vaccines that are due within the next yearsAhead or overdue
-        // Show vaccines from user's current age to current age + yearsAhead
-        // Always generate vaccines that are due within yearsAhead from current date
-        const endDate = new Date();
-        endDate.setFullYear(endDate.getFullYear() + yearsAhead);
-        const endDateTime = endDate.getTime();
-        
-        if (scheduledDate.getTime() <= endDateTime) {
-          try {
+        // Generate ALL vaccines from birth to 60+ years regardless of yearsAhead
+        // yearsAhead is only used for display filtering, not generation
+        // Always generate all vaccines for complete schedule
+        try {
             const insertSql = `
               INSERT INTO ${USER_VACCINES_TABLE} (
                 ${USER_VACCINES_FIELDS.USER_ID},
@@ -402,7 +397,6 @@ export const generateUserVaccines = async (userId, dependentId = null, yearsAhea
             console.log(`Error inserting vaccine ${vaccine.name} dose ${dose.dose_number}:`, error.message);
             continue;
           }
-        }
       }
     }
 
@@ -725,6 +719,7 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
 };
 
 export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = false, type = null, dependentId = null, yearsAhead = 2) => {
+  console.log(`=== getUserVaccinesGroupedByType called with: userId=${userId}, dependentId=${dependentId}, yearsAhead=${yearsAhead} ===`);
   try {
     // Get user's DOB for date filtering
     let userDob;
@@ -752,25 +747,23 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
     const endDate = new Date(currentDate.getFullYear() + yearsAhead, currentDate.getMonth(), currentDate.getDate());
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // Adjust DOB to account for timezone issues (birth vaccines might be scheduled for day before)
+    // Use actual DOB for date filtering (not adjusted)
     const dobDate = new Date(userDob);
-    const adjustedDobDate = new Date(dobDate.getTime() - 24 * 60 * 60 * 1000); // Subtract 1 day
-    const adjustedDobStr = adjustedDobDate.toISOString().split('T')[0];
+    const dobStr = dobDate.toISOString().split('T')[0];
 
     // Debug logging
-    console.log(`Date filtering: userDob=${userDob}, currentDate=${currentDate.toISOString().split('T')[0]}, endDate=${endDateStr}, yearsAhead=${yearsAhead}, adjustedDobStr=${adjustedDobStr}`);
+    console.log(`Date filtering: userDob=${userDob}, currentDate=${currentDate.toISOString().split('T')[0]}, endDate=${endDateStr}, yearsAhead=${yearsAhead}, dobStr=${dobStr}`);
 
     let whereClause = dependentId ? 
       `uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?` : 
       `uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL`;
     
-    // Add date filtering: show vaccines from adjusted DOB to current date + yearsAhead
+    // Add date filtering: show vaccines from DOB to current date + yearsAhead
     whereClause += ` AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} >= ? AND uv.${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= ?`;
     
-    let params = [userId, adjustedDobStr, endDateStr];
-    if (dependentId) {
-      params.push(dependentId);
-    }
+    let params = dependentId ? 
+      [userId, dependentId, dobStr, endDateStr] : 
+      [userId, dobStr, endDateStr];
     
     if (excludeCompleted) {
       whereClause += ` AND uv.${USER_VACCINES_FIELDS.STATUS} != 'completed'`;
@@ -930,7 +923,18 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
       ORDER BY uv.scheduled_date ASC, v.name ASC
     `;
     
-    const groups = await query(sql, params);
+    console.log(`About to execute SQL query for ${dependentId ? 'dependent' : 'user'} ${dependentId || userId}`);
+    console.log(`SQL Query: ${sql}`);
+    console.log(`SQL Params: ${JSON.stringify(params)}`);
+    
+    let groups;
+    try {
+      groups = await query(sql, params);
+      console.log(`SQL Query returned ${groups.length} results for ${dependentId ? 'dependent' : 'user'} ${dependentId || userId}`);
+    } catch (error) {
+      console.log(`SQL Query error: ${error.message}`);
+      throw error;
+    }
     
     // Group vaccines by type directly from the results
     const groupsByType = {};
@@ -962,6 +966,18 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
         age_range: vaccine.age_range
       });
     });
+    
+    // If a specific type is requested, only return that type group
+    if (type) {
+      const filteredGroups = {};
+      if (groupsByType[type]) {
+        filteredGroups[type] = groupsByType[type];
+      }
+      return {
+        success: true,
+        groups: filteredGroups
+      };
+    }
     
     return {
       success: true,

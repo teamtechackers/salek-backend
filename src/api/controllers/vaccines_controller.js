@@ -68,7 +68,7 @@ export const getVaccinesList = async (req, res) => {
 
 export const getSpecificUserVaccineRecords = async (req, res) => {
   try {
-    const { user_id, status, exclude_completed, type } = req.query;
+    const { user_id, status, exclude_completed, type, travel } = req.query;
 
     if (!user_id) {
       return res.status(400).json({
@@ -149,8 +149,15 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
     // Default: always return grouped by type when no status is provided
     const excludeCompletedFlag = exclude_completed === 'true';
     const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
+    const travelFlag = travel === 'true';
+    
+    // If travel=true, only show Travel vaccines, otherwise use the type parameter
+    const vaccineType = travelFlag ? 'Travel' : type;
+    
+    console.log(`Travel filter: travelFlag=${travelFlag}, vaccineType=${vaccineType}, type=${type}`);
+    
     const { getUserVaccinesGroupedByType } = await import('../../services/user_vaccines_service.js');
-    const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, type, null, yearsAhead);
+    const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, vaccineType, null, yearsAhead);
 
     if (!grouped.success) {
       return res.status(500).json({ success: false, message: grouped.error });
@@ -1353,7 +1360,7 @@ export const addVaccineAPI = async (req, res) => {
 // Get dependent vaccines
 export const getDependentVaccinesAPI = async (req, res) => {
   try {
-    const { dependent_id, user_id, status, group_by, type } = req.query;
+    const { dependent_id, user_id, status, group_by, type, travel } = req.query;
 
     if (!dependent_id || !user_id) {
       return res.status(400).json({
@@ -1436,7 +1443,14 @@ export const getDependentVaccinesAPI = async (req, res) => {
     } else if (group_by === 'type' || group_by === undefined) {
       // Default to grouped by type for dependents
       const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
-      result = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId, yearsAhead);
+      const travelFlag = travel === 'true';
+      
+      // If travel=true, only show Travel vaccines, otherwise use the type parameter
+      const vaccineType = travelFlag ? 'Travel' : type;
+      
+      console.log(`Dependent Travel filter: travelFlag=${travelFlag}, vaccineType=${vaccineType}, type=${type}`);
+      console.log(`Calling getUserVaccinesGroupedByType with: userId=${actualUserId}, dependentId=${actualDependentId}, yearsAhead=${yearsAhead}`);
+      result = await getUserVaccinesGroupedByType(actualUserId, false, vaccineType, actualDependentId, yearsAhead);
     } else {
       result = await getUserVaccines(actualUserId, false, actualDependentId);
     }

@@ -48,9 +48,75 @@ export const VACCINES_FIELDS = {
 };
 
 export const VACCINES_DATA = [
-  // BIRTH TO 1 YEAR VACCINES
+  // PRENATAL VACCINES
   {
     vaccine_id: 1,
+    name: "Tetanus Toxoid (TT-1)",
+    type: "Mandatory",
+    category: "Prenatal",
+    sub_category: "Mandatory",
+    min_age_months: -9,
+    max_age_months: 0,
+    total_doses: 1,
+    frequency: "Early pregnancy",
+    when_to_give: "Early in pregnancy",
+    dose: "0.5 ml",
+    route: "Intramuscular",
+    site: "Upper Arm",
+    notes: "Mandatory under NIS. Protects against maternal and neonatal tetanus"
+  },
+  {
+    vaccine_id: 2,
+    name: "Tetanus Toxoid (TT-2)",
+    type: "Mandatory",
+    category: "Prenatal",
+    sub_category: "Mandatory",
+    min_age_months: -8,
+    max_age_months: 0,
+    total_doses: 1,
+    frequency: "4 weeks after TT-1",
+    when_to_give: "4 weeks after TT-1",
+    dose: "0.5 ml",
+    route: "Intramuscular",
+    site: "Upper Arm",
+    notes: "Mandatory under NIS. Completes primary series for tetanus protection"
+  },
+  {
+    vaccine_id: 3,
+    name: "Tdap in Pregnancy",
+    type: "Mandatory",
+    category: "Prenatal",
+    sub_category: "Mandatory",
+    min_age_months: -3,
+    max_age_months: -1,
+    total_doses: 1,
+    frequency: "Once between 27-36 weeks",
+    when_to_give: "Once between 27-36 weeks of gestation",
+    dose: "0.5 ml",
+    route: "Intramuscular",
+    site: "Upper Arm",
+    notes: "Mandatory; protects newborn from pertussis (whooping cough)"
+  },
+  {
+    vaccine_id: 4,
+    name: "Influenza (Prenatal)",
+    type: "Optional",
+    category: "Prenatal",
+    sub_category: "Optional",
+    min_age_months: -9,
+    max_age_months: 0,
+    total_doses: 1,
+    frequency: "Any trimester, annually",
+    when_to_give: "Any trimester (IAP recommendation)",
+    dose: "0.5 ml",
+    route: "Intramuscular",
+    site: "Upper Arm",
+    notes: "Recommended for all pregnant women annually, especially in flu season"
+  },
+
+  // BIRTH TO 1 YEAR VACCINES
+  {
+    vaccine_id: 5,
     name: "BCG",
     type: "Mandatory",
     category: "Infant",
@@ -66,7 +132,7 @@ export const VACCINES_DATA = [
     notes: "Prevents severe TB forms."
   },
   {
-    vaccine_id: 2,
+    vaccine_id: 6,
     name: "Hepatitis B (Birth Dose)",
     type: "Mandatory",
     category: "Infant",
@@ -82,7 +148,7 @@ export const VACCINES_DATA = [
     notes: "Prevents mother-to-child transmission."
   },
   {
-    vaccine_id: 3,
+    vaccine_id: 7,
     name: "OPV-0",
     type: "Mandatory",
     category: "Infant",
@@ -98,7 +164,7 @@ export const VACCINES_DATA = [
     notes: "Zero-dose protection for polio."
   },
   {
-    vaccine_id: 4,
+    vaccine_id: 8,
     name: "OPV-1,2,3",
     type: "Mandatory",
     category: "Infant",
@@ -114,7 +180,7 @@ export const VACCINES_DATA = [
     notes: "Part of polio eradication program."
   },
   {
-    vaccine_id: 5,
+    vaccine_id: 9,
     name: "Pentavalent-1,2,3 (DPT-HepB-Hib)",
     type: "Mandatory",
     category: "Infant",
@@ -130,7 +196,7 @@ export const VACCINES_DATA = [
     notes: "Covers Diphtheria, Pertussis, Tetanus, HepB, Hib."
   },
   {
-    vaccine_id: 6,
+    vaccine_id: 10,
     name: "Rotavirus Vaccine (RVV)-1,2,3",
     type: "Mandatory",
     category: "Infant",
@@ -146,7 +212,7 @@ export const VACCINES_DATA = [
     notes: "Prevents severe diarrhea; available in select states."
   },
   {
-    vaccine_id: 7,
+    vaccine_id: 11,
     name: "fIPV-1,2",
     type: "Mandatory",
     category: "Infant",
@@ -162,7 +228,7 @@ export const VACCINES_DATA = [
     notes: "Enhances polio immunity."
   },
   {
-    vaccine_id: 8,
+    vaccine_id: 12,
     name: "PCV-1,2 (Pneumococcal)",
     type: "Mandatory",
     category: "Infant",
@@ -178,7 +244,7 @@ export const VACCINES_DATA = [
     notes: "Prevents pneumonia; booster at 9–12 months."
   },
   {
-    vaccine_id: 9,
+    vaccine_id: 13,
     name: "Measles/MR-1",
     type: "Mandatory",
     category: "Infant",
@@ -194,7 +260,7 @@ export const VACCINES_DATA = [
     notes: "Prevents measles & rubella."
   },
   {
-    vaccine_id: 10,
+    vaccine_id: 14,
     name: "JE-1 (Japanese Encephalitis)",
     type: "Mandatory",
     category: "Infant",
@@ -210,7 +276,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory in endemic districts."
   },
   {
-    vaccine_id: 11,
+    vaccine_id: 15,
     name: "Vitamin A (1st Dose)",
     type: "Mandatory",
     category: "Infant",
@@ -226,7 +292,7 @@ export const VACCINES_DATA = [
     notes: "Prevents vitamin A deficiency."
   },
   {
-    vaccine_id: 12,
+    vaccine_id: 16,
     name: "Typhoid Conjugate (Optional)",
     type: "Optional",
     category: "Infant",
@@ -242,7 +308,7 @@ export const VACCINES_DATA = [
     notes: "Single dose; IAP recommended."
   },
   {
-    vaccine_id: 13,
+    vaccine_id: 17,
     name: "Influenza (Optional)",
     type: "Optional",
     category: "Infant",
@@ -260,7 +326,7 @@ export const VACCINES_DATA = [
 
   // 1-5 YEARS VACCINES
   {
-    vaccine_id: 14,
+    vaccine_id: 18,
     name: "DPT Booster-1",
     type: "Mandatory",
     category: "Child",
@@ -276,7 +342,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory."
   },
   {
-    vaccine_id: 15,
+    vaccine_id: 19,
     name: "Measles/MR-2",
     type: "Mandatory",
     category: "Child",
@@ -292,7 +358,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory; part of phased rollout."
   },
   {
-    vaccine_id: 16,
+    vaccine_id: 20,
     name: "OPV Booster",
     type: "Mandatory",
     category: "Child",
@@ -308,7 +374,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory."
   },
   {
-    vaccine_id: 17,
+    vaccine_id: 21,
     name: "JE-2",
     type: "Mandatory",
     category: "Child",
@@ -324,7 +390,7 @@ export const VACCINES_DATA = [
     notes: "For endemic areas."
   },
   {
-    vaccine_id: 18,
+    vaccine_id: 22,
     name: "Vitamin A (2–9 Doses)",
     type: "Mandatory",
     category: "Child",
@@ -340,7 +406,7 @@ export const VACCINES_DATA = [
     notes: "Total 9 doses recommended."
   },
   {
-    vaccine_id: 19,
+    vaccine_id: 23,
     name: "DPT Booster-2",
     type: "Mandatory",
     category: "Child",
@@ -356,7 +422,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory."
   },
   {
-    vaccine_id: 20,
+    vaccine_id: 24,
     name: "MMR (Optional)",
     type: "Optional",
     category: "Child",
@@ -372,7 +438,7 @@ export const VACCINES_DATA = [
     notes: "2 doses for mumps protection."
   },
   {
-    vaccine_id: 21,
+    vaccine_id: 25,
     name: "Varicella (Optional)",
     type: "Optional",
     category: "Child",
@@ -388,7 +454,7 @@ export const VACCINES_DATA = [
     notes: "Prevents chickenpox; 2 doses."
   },
   {
-    vaccine_id: 22,
+    vaccine_id: 26,
     name: "Hepatitis A (Optional)",
     type: "Optional",
     category: "Child",
@@ -406,7 +472,7 @@ export const VACCINES_DATA = [
 
   // 6-18 YEARS VACCINES
   {
-    vaccine_id: 23,
+    vaccine_id: 27,
     name: "Tdap/Td",
     type: "Mandatory",
     category: "Adolescent",
@@ -422,7 +488,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory Td; IAP prefers Tdap for pertussis."
   },
   {
-    vaccine_id: 24,
+    vaccine_id: 28,
     name: "HPV",
     type: "Optional",
     category: "Adolescent",
@@ -438,7 +504,7 @@ export const VACCINES_DATA = [
     notes: "3 doses if >15 years or immunocompromised."
   },
   {
-    vaccine_id: 25,
+    vaccine_id: 29,
     name: "Typhoid (Booster)",
     type: "Optional",
     category: "Adolescent",
@@ -454,7 +520,7 @@ export const VACCINES_DATA = [
     notes: "Conjugate preferred."
   },
   {
-    vaccine_id: 26,
+    vaccine_id: 30,
     name: "Influenza",
     type: "Optional",
     category: "Adolescent",
@@ -470,7 +536,7 @@ export const VACCINES_DATA = [
     notes: "For high-risk adolescents."
   },
   {
-    vaccine_id: 27,
+    vaccine_id: 31,
     name: "Catch-up (e.g., Hep B, MMR)",
     type: "Mandatory",
     category: "Adolescent",
@@ -488,7 +554,7 @@ export const VACCINES_DATA = [
 
   // 18-60 YEARS VACCINES
   {
-    vaccine_id: 28,
+    vaccine_id: 32,
     name: "Td/Tdap Booster",
     type: "Mandatory",
     category: "Adult",
@@ -504,7 +570,7 @@ export const VACCINES_DATA = [
     notes: "Maintain tetanus/diphtheria immunity."
   },
   {
-    vaccine_id: 29,
+    vaccine_id: 33,
     name: "Influenza",
     type: "Mandatory",
     category: "Adult",
@@ -520,7 +586,7 @@ export const VACCINES_DATA = [
     notes: "For high-risk adults."
   },
   {
-    vaccine_id: 30,
+    vaccine_id: 34,
     name: "Pneumococcal (PCV13/15 + PPSV23)",
     type: "High-risk",
     category: "Adult",
@@ -536,7 +602,7 @@ export const VACCINES_DATA = [
     notes: "Sequential; for chronic or immune conditions."
   },
   {
-    vaccine_id: 31,
+    vaccine_id: 35,
     name: "HPV",
     type: "Optional",
     category: "Adult",
@@ -552,7 +618,7 @@ export const VACCINES_DATA = [
     notes: "Prevents cervical & HPV-related cancers."
   },
   {
-    vaccine_id: 32,
+    vaccine_id: 36,
     name: "Hepatitis B",
     type: "High-risk",
     category: "Adult",
@@ -568,7 +634,7 @@ export const VACCINES_DATA = [
     notes: "For healthcare workers, dialysis, etc."
   },
   {
-    vaccine_id: 33,
+    vaccine_id: 37,
     name: "Hepatitis A",
     type: "High-risk",
     category: "Adult",
@@ -584,7 +650,7 @@ export const VACCINES_DATA = [
     notes: "For travelers or liver disease."
   },
   {
-    vaccine_id: 34,
+    vaccine_id: 38,
     name: "MMR",
     type: "High-risk",
     category: "Adult",
@@ -600,7 +666,7 @@ export const VACCINES_DATA = [
     notes: "For outbreaks or travel."
   },
   {
-    vaccine_id: 35,
+    vaccine_id: 39,
     name: "Varicella",
     type: "High-risk",
     category: "Adult",
@@ -616,7 +682,7 @@ export const VACCINES_DATA = [
     notes: "Prevents chickenpox."
   },
   {
-    vaccine_id: 36,
+    vaccine_id: 40,
     name: "Cholera (Oral)",
     type: "High-risk",
     category: "Adult",
@@ -634,7 +700,7 @@ export const VACCINES_DATA = [
 
   // 60+ YEARS VACCINES
   {
-    vaccine_id: 37,
+    vaccine_id: 41,
     name: "Influenza",
     type: "Mandatory",
     category: "Elderly",
@@ -650,7 +716,7 @@ export const VACCINES_DATA = [
     notes: "Strongly recommended for all >60."
   },
   {
-    vaccine_id: 38,
+    vaccine_id: 42,
     name: "Pneumococcal (PCV13/15 + PPSV23)",
     type: "Mandatory",
     category: "Elderly",
@@ -666,7 +732,7 @@ export const VACCINES_DATA = [
     notes: "Revaccinate PPSV23 after 5 years if high-risk."
   },
   {
-    vaccine_id: 39,
+    vaccine_id: 43,
     name: "Herpes Zoster (Shingles)",
     type: "Optional",
     category: "Elderly",
@@ -682,7 +748,7 @@ export const VACCINES_DATA = [
     notes: "Prevents shingles & post-herpetic pain."
   },
   {
-    vaccine_id: 40,
+    vaccine_id: 44,
     name: "Td/Tdap Booster",
     type: "Mandatory",
     category: "Elderly",
@@ -698,7 +764,7 @@ export const VACCINES_DATA = [
     notes: "Maintain tetanus/diphtheria immunity."
   },
   {
-    vaccine_id: 41,
+    vaccine_id: 45,
     name: "Hepatitis B",
     type: "High-risk",
     category: "Elderly",
@@ -716,7 +782,7 @@ export const VACCINES_DATA = [
 
   // TRAVEL VACCINES
   {
-    vaccine_id: 42,
+    vaccine_id: 46,
     name: "Yellow Fever",
     type: "Travel",
     category: "Travel",
@@ -732,7 +798,7 @@ export const VACCINES_DATA = [
     notes: "Required for entry to endemic countries."
   },
   {
-    vaccine_id: 43,
+    vaccine_id: 47,
     name: "Polio (OPV/IPV Booster)",
     type: "Travel",
     category: "Travel",
@@ -748,7 +814,7 @@ export const VACCINES_DATA = [
     notes: "For travel to countries with ongoing polio."
   },
   {
-    vaccine_id: 44,
+    vaccine_id: 48,
     name: "Meningococcal (ACYW-135)",
     type: "Travel",
     category: "Travel",
@@ -764,7 +830,7 @@ export const VACCINES_DATA = [
     notes: "Mandatory for Hajj/Umrah pilgrims."
   },
   {
-    vaccine_id: 45,
+    vaccine_id: 49,
     name: "Hepatitis A/B",
     type: "Travel",
     category: "Travel",
@@ -780,7 +846,7 @@ export const VACCINES_DATA = [
     notes: "For travelers to risk regions."
   },
   {
-    vaccine_id: 46,
+    vaccine_id: 50,
     name: "Typhoid",
     type: "Travel",
     category: "Travel",
@@ -796,7 +862,7 @@ export const VACCINES_DATA = [
     notes: "Food/water protection."
   },
   {
-    vaccine_id: 47,
+    vaccine_id: 51,
     name: "Rabies",
     type: "Travel",
     category: "Travel",
@@ -812,7 +878,7 @@ export const VACCINES_DATA = [
     notes: "For animal exposure risk."
   },
   {
-    vaccine_id: 48,
+    vaccine_id: 52,
     name: "Japanese Encephalitis",
     type: "Travel",
     category: "Travel",
