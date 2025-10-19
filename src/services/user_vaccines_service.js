@@ -206,6 +206,42 @@ const parseVaccineFrequency = (vaccine, userDob) => {
           }
         }
       }
+      
+      // Handle Hepatitis A specific schedule (12-23 months, 2 doses, 6 months apart)
+      if (name && name.toLowerCase().includes('hepatitis a') && when_to_give.includes('12–23 months')) {
+        // First dose at 12 months
+        doses.push({
+          vaccine_id,
+          dose_number: ++doseCount,
+          min_age_days: 365, // 12 months
+          category
+        });
+        // Second dose 6 months later (18 months)
+        doses.push({
+          vaccine_id,
+          dose_number: ++doseCount,
+          min_age_days: 548, // 18 months (12 + 6)
+          category
+        });
+      }
+      
+      // Handle Tdap/Td specific schedule (10 years & 16 years, 2 doses)
+      if (name && name.toLowerCase().includes('tdap') && when_to_give.includes('10 years & 16 years')) {
+        // First dose at 10 years
+        doses.push({
+          vaccine_id,
+          dose_number: ++doseCount,
+          min_age_days: 3650, // 10 years
+          category
+        });
+        // Second dose at 16 years
+        doses.push({
+          vaccine_id,
+          dose_number: ++doseCount,
+          min_age_days: 5840, // 16 years
+          category
+        });
+      }
     }
   }
   
@@ -252,11 +288,11 @@ export const generateUserVaccines = async (userId, dependentId = null, yearsAhea
     const birthDate = new Date(userDob);
     const { currentAgeDays, currentAgeGroup } = generateDocumentBasedSchedule(userDob, userCountry);
 
-    // Get ALL vaccines for complete schedule (birth to 100+ years)
+    // Get ALL vaccines for complete schedule (birth to 60+ years)
     let vaccinesSql;
     let vaccines;
     
-    // Get ALL vaccines regardless of age - complete schedule from birth to 100+ years
+    // Get ALL vaccines regardless of age - complete schedule from birth to 60+ years
     vaccinesSql = `
       SELECT * FROM ${VACCINES_TABLE}
       WHERE ${VACCINES_FIELDS.IS_ACTIVE} = true 
@@ -792,25 +828,31 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
           ELSE 'Pending'
         END as time_description,
         CASE
-          -- Birth vaccines (0 months)
-          WHEN v.min_age_months = 0 AND v.max_age_months = 0 THEN 'At birth'
-          WHEN v.min_age_months = 0 AND v.max_age_months = 1 THEN 'Within 24 hours of birth'
-          WHEN v.min_age_months = 0 AND v.max_age_months = 6 THEN 'Within 24 hours of birth'
-          WHEN v.min_age_months = 0 AND v.max_age_months = 12 THEN 'At birth or up to 1 year'
+                 -- Birth vaccines (0 months)
+                 WHEN v.min_age_months = 0 AND v.max_age_months = 0 THEN 'At birth'
+                 WHEN v.min_age_months = 0 AND v.max_age_months = 1 AND v.name = 'OPV-0' THEN 'Within 15 days of birth'
+                 WHEN v.min_age_months = 0 AND v.max_age_months = 1 THEN 'Within 24 hours of birth'
+                 WHEN v.min_age_months = 0 AND v.max_age_months = 6 THEN 'Within 24 hours of birth'
+                 WHEN v.min_age_months = 0 AND v.max_age_months = 12 THEN 'At birth or up to 1 year'
           WHEN v.min_age_months = 0 AND v.max_age_months = 60 THEN 'Birth to 5 years'
           WHEN v.min_age_months = 0 AND v.max_age_months = 1200 THEN 'Birth onwards (as needed)'
           
           -- 6 weeks vaccines (6 months = 6 weeks)
-          WHEN v.min_age_months = 6 AND v.max_age_months = 9 THEN '6 to 9 months'
-          WHEN v.min_age_months = 6 AND v.max_age_months = 12 THEN '6 to 12 months'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 9 THEN '6–9 months'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 12 AND v.name = 'OPV-1,2,3' THEN '6, 10, 14 weeks'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 12 AND v.name = 'Pentavalent (DPT+HepB+Hib)' THEN '6, 10, and 14 weeks'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 12 AND v.name = 'Rotavirus' THEN '6, 10, and 14 weeks'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 12 AND v.name = 'PCV (Pneumococcal)' THEN '6 and 14 weeks'
+          WHEN v.min_age_months = 6 AND v.max_age_months = 12 THEN '6 and 14 weeks'
           WHEN v.min_age_months = 6 AND v.max_age_months = 14 THEN '6 and 14 weeks'
           WHEN v.min_age_months = 6 AND v.max_age_months = 1200 THEN 'From 6 months onwards'
           
-          -- 9 months vaccines
-          WHEN v.min_age_months = 9 AND v.max_age_months = 12 THEN '9–12 months'
-          WHEN v.min_age_months = 9 AND v.max_age_months = 24 THEN '9–12 months'
-          WHEN v.min_age_months = 9 AND v.max_age_months = 60 THEN '9 months to 5 years'
-          WHEN v.min_age_months = 9 AND v.max_age_months = 1200 THEN 'From 9 months onwards'
+                 -- 9 months vaccines
+                 WHEN v.min_age_months = 9 AND v.max_age_months = 12 AND v.name = 'Vitamin A (1st Dose)' THEN '9 months with MR'
+                 WHEN v.min_age_months = 9 AND v.max_age_months = 12 THEN '9–12 months'
+                 WHEN v.min_age_months = 9 AND v.max_age_months = 24 THEN '9–12 months'
+                 WHEN v.min_age_months = 9 AND v.max_age_months = 60 THEN 'Every 6 months up to 5 years'
+                 WHEN v.min_age_months = 9 AND v.max_age_months = 1200 THEN '≥10 days before travel'
           
           -- 12 months vaccines
           WHEN v.min_age_months = 12 AND v.max_age_months = 23 THEN '12–23 months'
@@ -831,16 +873,22 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
           
           -- 9-14 years vaccines
           WHEN v.min_age_months = 108 AND v.max_age_months = 168 THEN '9–14 years'
+          WHEN v.min_age_months = 108 AND v.max_age_months = 540 THEN 'Up to 26 years (males), 45 years (females)'
           
           -- 10-16 years vaccines
           WHEN v.min_age_months = 120 AND v.max_age_months = 192 THEN '10 years & 16 years'
           
           -- 18+ years vaccines
           WHEN v.min_age_months = 216 AND v.max_age_months = 540 THEN 'Up to 26 years (males), 45 years (females)'
+          WHEN v.min_age_months = 216 AND v.max_age_months = 1200 AND v.name = 'MMR' THEN 'If no immunity'
+          WHEN v.min_age_months = 216 AND v.max_age_months = 1200 AND v.name = 'Varicella' THEN 'If no prior infection'
           WHEN v.min_age_months = 216 AND v.max_age_months = 1200 THEN '19–64 years (high-risk)'
           
           -- 60+ years vaccines
+          WHEN v.min_age_months = 600 AND v.max_age_months = 1200 AND v.name = 'Herpes Zoster (Shingles)' THEN '>50 years (once)'
           WHEN v.min_age_months = 720 AND v.max_age_months = 1200 THEN '60+ years'
+          WHEN v.min_age_months = 228 AND v.max_age_months = 780 AND v.name = 'Pneumococcal (PCV13/15 + PPSV23)' THEN 'Once at >65; booster if needed'
+          WHEN v.min_age_months = 780 AND v.max_age_months = 1200 THEN 'Once at >65; booster if needed'
           
           -- General cases
           WHEN v.min_age_months > 0 AND v.max_age_months = 0 THEN CONCAT(
