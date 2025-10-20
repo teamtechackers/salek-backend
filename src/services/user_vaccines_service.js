@@ -677,11 +677,13 @@ export const addVaccineRecord = async (userVaccineId, doseNumber, completedDate,
 
 export const getUserVaccineRecords = async (userId, dependentId = null) => {
   try {
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
     let whereClause = dependentId ? 
       `${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?` : 
       `${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL`;
     
-    let params = [userId];
+    // First param will be used to build absolute image URL in SELECT
+    let params = [baseUrl, userId];
     if (dependentId) {
       params.push(dependentId);
     }
@@ -693,7 +695,11 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
         ${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
         ${USER_VACCINES_FIELDS.COMPLETED_DATE} as completed_date,
         ${USER_VACCINES_FIELDS.CITY_ID} as city_id,
-        ${USER_VACCINES_FIELDS.IMAGE_URL} as image_url,
+        CASE 
+          WHEN ${USER_VACCINES_FIELDS.IMAGE_URL} IS NOT NULL AND ${USER_VACCINES_FIELDS.IMAGE_URL} != ''
+            THEN CONCAT(?, '/uploads/vaccines/', ${USER_VACCINES_FIELDS.IMAGE_URL})
+          ELSE NULL
+        END as image_url,
         ${USER_VACCINES_FIELDS.NOTES} as notes,
         ${USER_VACCINES_FIELDS.CREATED_AT} as created_at
       FROM ${USER_VACCINES_TABLE}
