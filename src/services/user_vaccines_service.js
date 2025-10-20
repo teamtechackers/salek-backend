@@ -686,24 +686,21 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
       params.push(dependentId);
     }
     
+    // Return minimal fields and do not restrict to completed only
     const sql = `
       SELECT 
-        uv.*,
-        v.name as vaccine_name,
-        v.type as vaccine_type,
-        v.category as vaccine_category,
-        v.dose,
-        v.route,
-        v.site,
-        v.notes as vaccine_notes,
-        c.city_name
-      FROM ${USER_VACCINES_TABLE} uv
-      JOIN ${VACCINES_TABLE} v ON uv.${USER_VACCINES_FIELDS.VACCINE_ID} = v.${VACCINES_FIELDS.VACCINE_ID}
-      LEFT JOIN ${CITIES_TABLE} c ON uv.${USER_VACCINES_FIELDS.CITY_ID} = c.${CITIES_FIELDS.CITY_ID}
+        ${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
+        ${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
+        ${USER_VACCINES_FIELDS.COMPLETED_DATE} as completed_date,
+        ${USER_VACCINES_FIELDS.CITY_ID} as city_id,
+        ${USER_VACCINES_FIELDS.IMAGE_URL} as image_url,
+        ${USER_VACCINES_FIELDS.NOTES} as notes,
+        ${USER_VACCINES_FIELDS.CREATED_AT} as created_at
+      FROM ${USER_VACCINES_TABLE}
       WHERE ${whereClause}
-      AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
-      AND uv.${USER_VACCINES_FIELDS.STATUS} = 'completed'
-      ORDER BY uv.${USER_VACCINES_FIELDS.COMPLETED_DATE} DESC
+      AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+      AND ${USER_VACCINES_FIELDS.STATUS} = 'completed'
+      ORDER BY ${USER_VACCINES_FIELDS.COMPLETED_DATE} DESC
     `;
     
     const records = await query(sql, params);

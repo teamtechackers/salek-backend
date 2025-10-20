@@ -4,19 +4,22 @@ import logger from './logger.js';
 
 dotenv.config();
 
+// Prefer IPv4 loopback to avoid ::1 connection issues on some environments
 const dbConfig = {
-  host: 'localhost',
-  port: 3306,
-  user: 'root',
-  password: '',
-  database: 'salek',
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'salek',
   waitForConnections: true,
-  connectionLimit: 5,
-  queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
+  connectionLimit: Number(process.env.DB_POOL || 5),
+  queueLimit: 0
 };
+
+// Optional Unix socket path support (e.g., for MAMP/WAMP or cloud sockets)
+if (process.env.DB_SOCKET_PATH) {
+  dbConfig.socketPath = process.env.DB_SOCKET_PATH;
+}
 
 const pool = mysql.createPool(dbConfig);
 
