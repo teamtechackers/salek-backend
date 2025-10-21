@@ -522,9 +522,13 @@ export const updateVaccineStatus = async (userVaccineId, status, completedDate =
     const updateFields = [`${USER_VACCINES_FIELDS.STATUS} = ?`];
     const params = [status];
     
-    if (completedDate) {
+    // Set default completed date to current date if status is completed and no date provided
+    const finalCompletedDate = (status === 'completed' && !completedDate) ? 
+      new Date().toISOString().split('T')[0] : completedDate;
+    
+    if (finalCompletedDate) {
       updateFields.push(`${USER_VACCINES_FIELDS.COMPLETED_DATE} = ?`);
-      params.push(completedDate);
+      params.push(finalCompletedDate);
     }
     
     if (cityId) {
@@ -706,7 +710,10 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
         uv.${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
         uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
         DATE_FORMAT(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE}, '%Y-%m-%d') as completed_date,
-        TIME(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE}) as completed_time,
+        CASE 
+          WHEN TIME(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE}) = '00:00:00' THEN '12:00:00'
+          ELSE TIME(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE})
+        END as completed_time,
         uv.${USER_VACCINES_FIELDS.CITY_ID} as city_id,
         uv.${USER_VACCINES_FIELDS.HOSPITAL_ID} as hospital_id,
         CASE 

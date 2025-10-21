@@ -581,10 +581,13 @@ export const markVaccinesAsTaken = async (req, res) => {
           continue;
         }
 
+        // Set default completed date to current date if not provided
+        const finalCompletedDate = completed_date || new Date().toISOString().split('T')[0];
+        
         const result = await updateVaccineStatus(
           userVaccineId, 
           VACCINE_STATUS.COMPLETED,
-          completed_date || null,
+          finalCompletedDate,
           city_id || null,
           image_url || null,
           notes || null
@@ -594,7 +597,7 @@ export const markVaccinesAsTaken = async (req, res) => {
           updatedVaccines.push({
             user_vaccine_id: userVaccineId,
             status: 'completed',
-            completed_date: completed_date || new Date().toISOString().split('T')[0]
+            completed_date: finalCompletedDate
           });
         } else {
           failedUpdates.push({
