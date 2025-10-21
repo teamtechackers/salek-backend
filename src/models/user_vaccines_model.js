@@ -39,6 +39,7 @@ export const USER_VACCINES_FIELDS = {
   COMPLETED_DATE: 'completed_date',
   DOSE_NUMBER: 'dose_number',
   CITY_ID: 'city_id',
+  HOSPITAL_ID: 'hospital_id',
   IMAGE_URL: 'image_url',
   NOTES: 'notes',
   DEPENDENT_ID: 'dependent_id',

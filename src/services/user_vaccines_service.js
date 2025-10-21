@@ -660,12 +660,13 @@ export const addVaccineRecord = async (userVaccineId, doseNumber, completedDate,
         ${USER_VACCINES_FIELDS.STATUS} = 'completed',
         ${USER_VACCINES_FIELDS.COMPLETED_DATE} = ?,
         ${USER_VACCINES_FIELDS.CITY_ID} = ?,
+        ${USER_VACCINES_FIELDS.HOSPITAL_ID} = ?,
         ${USER_VACCINES_FIELDS.IMAGE_URL} = ?,
         ${USER_VACCINES_FIELDS.NOTES} = ?
       WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?
     `;
     
-    await query(sql, [completedDate, cityId, imageUrl, notes, userVaccineId]);
+    await query(sql, [completedDate, cityId, hospitalId, imageUrl, notes, userVaccineId]);
     
     logger.info(`Vaccine record added for user vaccine ${userVaccineId}`);
     return { success: true, message: 'Vaccine record added successfully' };
@@ -679,8 +680,8 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
   try {
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
     let whereClause = dependentId ? 
-      `${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?` : 
-      `${USER_VACCINES_FIELDS.USER_ID} = ? AND ${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL`;
+      `uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} = ?` : 
+      `uv.${USER_VACCINES_FIELDS.USER_ID} = ? AND uv.${USER_VACCINES_FIELDS.DEPENDENT_ID} IS NULL`;
     
     // First param will be used to build absolute image URL in SELECT
     let params = [baseUrl, userId];
@@ -688,28 +689,40 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
       params.push(dependentId);
     }
     
-    // Return minimal fields and do not restrict to completed only
+    // Return minimal fields with hospital details
     const sql = `
       SELECT 
-        ${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
-        ${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
-        ${USER_VACCINES_FIELDS.COMPLETED_DATE} as completed_date,
-        ${USER_VACCINES_FIELDS.CITY_ID} as city_id,
+        uv.${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
+        uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
+        uv.${USER_VACCINES_FIELDS.COMPLETED_DATE} as completed_date,
+        uv.${USER_VACCINES_FIELDS.CITY_ID} as city_id,
+        uv.${USER_VACCINES_FIELDS.HOSPITAL_ID} as hospital_id,
         CASE 
-          WHEN ${USER_VACCINES_FIELDS.IMAGE_URL} IS NOT NULL AND ${USER_VACCINES_FIELDS.IMAGE_URL} != ''
-            THEN CONCAT(?, '/uploads/vaccines/', ${USER_VACCINES_FIELDS.IMAGE_URL})
+          WHEN uv.${USER_VACCINES_FIELDS.IMAGE_URL} IS NOT NULL AND uv.${USER_VACCINES_FIELDS.IMAGE_URL} != ''
+            THEN CONCAT(?, '/uploads/vaccines/', uv.${USER_VACCINES_FIELDS.IMAGE_URL})
           ELSE NULL
         END as image_url,
-        ${USER_VACCINES_FIELDS.NOTES} as notes,
-        ${USER_VACCINES_FIELDS.CREATED_AT} as created_at
-      FROM ${USER_VACCINES_TABLE}
+        uv.${USER_VACCINES_FIELDS.NOTES} as notes,
+        uv.${USER_VACCINES_FIELDS.CREATED_AT} as created_at,
+        c.city_name as city_name,
+        h.name as hospital_name,
+        h.address as hospital_address,
+        h.phone as hospital_phone
+      FROM ${USER_VACCINES_TABLE} uv
+      LEFT JOIN cities c ON uv.${USER_VACCINES_FIELDS.CITY_ID} = c.city_id
+      LEFT JOIN hospitals h ON uv.${USER_VACCINES_FIELDS.HOSPITAL_ID} = h.hospital_id
       WHERE ${whereClause}
-      AND ${USER_VACCINES_FIELDS.IS_ACTIVE} = true
-      AND ${USER_VACCINES_FIELDS.STATUS} = 'completed'
-      ORDER BY ${USER_VACCINES_FIELDS.COMPLETED_DATE} DESC
+      AND uv.${USER_VACCINES_FIELDS.IS_ACTIVE} = true
+      AND uv.${USER_VACCINES_FIELDS.STATUS} = 'completed'
+      ORDER BY uv.${USER_VACCINES_FIELDS.COMPLETED_DATE} DESC
     `;
     
+    console.log('SQL Query:', sql);
+    console.log('SQL Params:', params);
+    
     const records = await query(sql, params);
+    
+    console.log('Query Results:', records);
     
     return {
       success: true,
