@@ -1080,4 +1080,115 @@ export const deleteAdminUser = async (req, res) => {
   }
 };
 
+export const addAdminVaccine = async (req, res) => {
+  try {
+    const {
+      admin_user_id,
+      name,
+      type,
+      category,
+      sub_category,
+      min_age_months,
+      max_age_months,
+      total_doses,
+      frequency,
+      when_to_give,
+      dose,
+      route,
+      site,
+      notes
+    } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id is required'
+      });
+    }
+
+    if (!name || !type || !category || !sub_category || !frequency) {
+      return res.status(400).json({
+        success: false,
+        message: 'name, type, category, sub_category, and frequency are required fields'
+      });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    // Verify admin user ID matches the authenticated user
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
+
+    // Check if vaccine with same name already exists
+    const checkSql = `SELECT vaccine_id FROM vaccines WHERE name = ? AND is_active = 1`;
+    const [existingVaccine] = await query(checkSql, [name]);
+    
+    if (existingVaccine) {
+      return res.status(409).json({
+        success: false,
+        message: 'Vaccine with this name already exists'
+      });
+    }
+
+    // Insert new vaccine
+    const insertSql = `
+      INSERT INTO vaccines (
+        name, type, category, sub_category, min_age_months, max_age_months,
+        total_doses, frequency, when_to_give, dose, route, site, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      name,
+      type,
+      category,
+      sub_category,
+      parseInt(min_age_months) || 0,
+      max_age_months ? parseInt(max_age_months) : null,
+      total_doses ? parseInt(total_doses) : null,
+      frequency,
+      when_to_give || null,
+      dose || null,
+      route || null,
+      site || null,
+      notes || null
+    ];
+
+    const result = await query(insertSql, params);
+
+    logger.info(`Admin added new vaccine: ${name} (ID: ${result.insertId})`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Vaccine added successfully',
+      data: {
+        vaccine_id: result.insertId,
+        name: name,
+        type: type,
+        category: category,
+        sub_category: sub_category,
+        created_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('addAdminVaccine error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 
