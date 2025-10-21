@@ -700,7 +700,7 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
       params.push(dependentId);
     }
     
-    // Return minimal fields with hospital details
+    // Return minimal fields with hospital details and vaccine notes
     const sql = `
       SELECT 
         uv.${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
@@ -714,13 +714,14 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
             THEN CONCAT(?, '/uploads/vaccines/', uv.${USER_VACCINES_FIELDS.IMAGE_URL})
           ELSE NULL
         END as image_url,
-        uv.${USER_VACCINES_FIELDS.NOTES} as notes,
+        v.${VACCINES_FIELDS.NOTES} as notes,
         uv.${USER_VACCINES_FIELDS.CREATED_AT} as created_at,
         c.city_name as city_name,
         h.name as hospital_name,
         h.address as hospital_address,
         h.phone as hospital_phone
       FROM ${USER_VACCINES_TABLE} uv
+      LEFT JOIN ${VACCINES_TABLE} v ON uv.${USER_VACCINES_FIELDS.VACCINE_ID} = v.${VACCINES_FIELDS.VACCINE_ID}
       LEFT JOIN cities c ON uv.${USER_VACCINES_FIELDS.CITY_ID} = c.city_id
       LEFT JOIN hospitals h ON uv.${USER_VACCINES_FIELDS.HOSPITAL_ID} = h.hospital_id
       WHERE ${whereClause}

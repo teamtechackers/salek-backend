@@ -855,7 +855,7 @@ export const addRecord = async (req, res) => {
       city_id || null,
       hospital_id || null,
       imageName,
-      notes || null
+      null // Ignore user notes as requested
     );
 
     if (!result.success) {
@@ -996,7 +996,7 @@ export const addRecordDependent = async (req, res) => {
       city_id || null,
       hospital_id || null,
       imageName,
-      notes || null
+      null // Ignore user notes as requested
     );
 
     if (!result.success) {
@@ -1569,7 +1569,7 @@ export const addDependentVaccineRecordAPI = async (req, res) => {
       completed_time,
       city_id ? parseInt(city_id) : null,
       imageName,
-      notes
+      null // Ignore user notes as requested
     );
 
     if (!result.success) {
