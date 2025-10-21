@@ -654,6 +654,17 @@ export const getUserVaccinesByStatus = async (userId, status, dependentId = null
 
 export const addVaccineRecord = async (userVaccineId, doseNumber, completedDate, completedTime = null, cityId = null, hospitalId = null, imageUrl = null, notes = null) => {
   try {
+    // Combine date and time into a single datetime value
+    let completedDateTime = completedDate;
+    if (completedTime) {
+      // If time is provided, combine it with the date
+      const dateTimeString = `${completedDate} ${completedTime}`;
+      completedDateTime = new Date(dateTimeString);
+    } else {
+      // If no time provided, use the date as-is
+      completedDateTime = new Date(completedDate);
+    }
+
     const sql = `
       UPDATE ${USER_VACCINES_TABLE} 
       SET 
@@ -666,9 +677,9 @@ export const addVaccineRecord = async (userVaccineId, doseNumber, completedDate,
       WHERE ${USER_VACCINES_FIELDS.USER_VACCINE_ID} = ?
     `;
     
-    await query(sql, [completedDate, cityId, hospitalId, imageUrl, notes, userVaccineId]);
+    await query(sql, [completedDateTime, cityId, hospitalId, imageUrl, notes, userVaccineId]);
     
-    logger.info(`Vaccine record added for user vaccine ${userVaccineId}`);
+    logger.info(`Vaccine record added for user vaccine ${userVaccineId} at ${completedDateTime}`);
     return { success: true, message: 'Vaccine record added successfully' };
   } catch (error) {
     logger.error('Add vaccine record error:', error);
@@ -694,7 +705,8 @@ export const getUserVaccineRecords = async (userId, dependentId = null) => {
       SELECT 
         uv.${USER_VACCINES_FIELDS.USER_VACCINE_ID} as user_vaccine_id,
         uv.${USER_VACCINES_FIELDS.DOSE_NUMBER} as dose_number,
-        uv.${USER_VACCINES_FIELDS.COMPLETED_DATE} as completed_date,
+        DATE_FORMAT(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE}, '%Y-%m-%d') as completed_date,
+        TIME(uv.${USER_VACCINES_FIELDS.COMPLETED_DATE}) as completed_time,
         uv.${USER_VACCINES_FIELDS.CITY_ID} as city_id,
         uv.${USER_VACCINES_FIELDS.HOSPITAL_ID} as hospital_id,
         CASE 
