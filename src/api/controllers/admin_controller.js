@@ -149,6 +149,45 @@ export const getAdminUsersList = async (req, res) => {
     `;
     const dataRows = await query(dataSql, params);
 
+    // Get dependents for all users in the current page
+    const userIds = dataRows.map(u => u.id);
+    const dependentsMap = new Map();
+    
+    if (userIds.length > 0) {
+      const dependentsSql = `
+        SELECT 
+          d.dependent_id,
+          d.user_id,
+          d.full_name,
+          d.dob,
+          d.gender,
+          d.created_at,
+          r.relation_type
+        FROM dependents d
+        LEFT JOIN relationships r ON d.relation_id = r.id
+        WHERE d.user_id IN (${userIds.map(() => '?').join(',')}) 
+        AND d.is_active = 1
+        ORDER BY d.created_at DESC
+      `;
+      
+      const dependentsRows = await query(dependentsSql, userIds);
+      
+      // Group dependents by user_id
+      dependentsRows.forEach(dep => {
+        if (!dependentsMap.has(dep.user_id)) {
+          dependentsMap.set(dep.user_id, []);
+        }
+        dependentsMap.get(dep.user_id).push({
+          id: dep.dependent_id,
+          name: dep.full_name,
+          dob: dep.dob,
+          gender: dep.gender,
+          relation_type: dep.relation_type,
+          created_at: dep.created_at
+        });
+      });
+    }
+
     const users = dataRows.map(u => ({
       id: u.id,
       encrypted_id: encryptUserId(u.id),
@@ -169,6 +208,7 @@ export const getAdminUsersList = async (req, res) => {
       updated_at: u.updated_at,
       // Additional statistics
       dependents_count: u.dependents_count,
+      dependents: dependentsMap.get(u.id) || [],
       vaccine_stats: {
         total_vaccines: u.total_vaccines,
         completed_vaccines: u.completed_vaccines,
