@@ -94,11 +94,57 @@ export const getAdminUsersList = async (req, res) => {
     const [countRow] = await query(countSql, params);
     const total = countRow?.total || 0;
 
+    // Enhanced query with more user details
     const dataSql = `
-      SELECT id, phone_number, full_name, dob, gender, profile_completed, created_at
-      FROM users
+      SELECT 
+        u.id, 
+        u.phone_number, 
+        u.full_name, 
+        u.dob, 
+        u.gender, 
+        u.country,
+        u.address,
+        u.contact_no,
+        u.material_status,
+        u.do_you_have_children,
+        u.how_many_children,
+        u.are_you_pregnant,
+        u.pregnancy_detail,
+        u.profile_completed, 
+        u.created_at,
+        u.updated_at,
+        -- Dependents count
+        COALESCE(dep_count.dependents_count, 0) as dependents_count,
+        -- Vaccine statistics
+        COALESCE(vaccine_stats.total_vaccines, 0) as total_vaccines,
+        COALESCE(vaccine_stats.completed_vaccines, 0) as completed_vaccines,
+        COALESCE(vaccine_stats.overdue_vaccines, 0) as overdue_vaccines,
+        COALESCE(vaccine_stats.upcoming_vaccines, 0) as upcoming_vaccines,
+        -- Last vaccine date
+        vaccine_stats.last_vaccine_date
+      FROM users u
+      LEFT JOIN (
+        SELECT 
+          user_id, 
+          COUNT(*) as dependents_count
+        FROM dependents 
+        WHERE is_active = 1
+        GROUP BY user_id
+      ) dep_count ON u.id = dep_count.user_id
+      LEFT JOIN (
+        SELECT 
+          user_id,
+          COUNT(*) as total_vaccines,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_vaccines,
+          SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue_vaccines,
+          SUM(CASE WHEN status = 'upcoming' THEN 1 ELSE 0 END) as upcoming_vaccines,
+          MAX(completed_date) as last_vaccine_date
+        FROM user_vaccines 
+        WHERE is_active = 1 AND dependent_id IS NULL
+        GROUP BY user_id
+      ) vaccine_stats ON u.id = vaccine_stats.user_id
       ${where}
-      ORDER BY created_at DESC
+      ORDER BY u.created_at DESC
       LIMIT ${Number(offset)}, ${Number(pageSize)}
     `;
     const dataRows = await query(dataSql, params);
@@ -110,8 +156,27 @@ export const getAdminUsersList = async (req, res) => {
       full_name: u.full_name,
       dob: u.dob,
       gender: u.gender,
+      country: u.country,
+      address: u.address,
+      contact_no: u.contact_no,
+      material_status: u.material_status,
+      do_you_have_children: !!u.do_you_have_children,
+      how_many_children: u.how_many_children,
+      are_you_pregnant: !!u.are_you_pregnant,
+      pregnancy_detail: u.pregnancy_detail,
       profile_completed: !!u.profile_completed,
-      created_at: u.created_at
+      created_at: u.created_at,
+      updated_at: u.updated_at,
+      // Additional statistics
+      dependents_count: u.dependents_count,
+      vaccine_stats: {
+        total_vaccines: u.total_vaccines,
+        completed_vaccines: u.completed_vaccines,
+        overdue_vaccines: u.overdue_vaccines,
+        upcoming_vaccines: u.upcoming_vaccines,
+        last_vaccine_date: u.last_vaccine_date,
+        completion_percentage: u.total_vaccines > 0 ? Math.round((u.completed_vaccines / u.total_vaccines) * 100) : 0
+      }
     }));
 
     return res.status(200).json({
@@ -320,9 +385,9 @@ export const getAdminAllVaccines = async (req, res) => {
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
     const offset = pageNum * pageSize;
 
-    // Build WHERE clause - using soft delete with notes field
-    let whereClause = 'WHERE (notes IS NULL OR notes NOT LIKE ?)';
-    const params = ['%[DELETED]%'];
+    // Build WHERE clause - using is_active field for soft delete
+    let whereClause = 'WHERE is_active = 1';
+    const params = [];
 
     if (search) {
       whereClause += ' AND (name LIKE ? OR type LIKE ? OR category LIKE ? OR sub_category LIKE ?)';
@@ -367,11 +432,10 @@ export const getAdminAllVaccines = async (req, res) => {
       FROM vaccines 
       ${whereClause}
       ORDER BY type ASC, category ASC, name ASC
-      LIMIT ?, ?
+      LIMIT ${offset}, ${pageSize}
     `;
     
-    const vaccinesParams = [...params, offset, pageSize];
-    const vaccines = await query(vaccinesSql, vaccinesParams);
+    const vaccines = await query(vaccinesSql, params);
 
     // Get vaccine types for filter options
     const typesSql = `SELECT DISTINCT type FROM vaccines ORDER BY type ASC`;
