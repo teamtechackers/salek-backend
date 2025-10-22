@@ -114,6 +114,7 @@ export const getAdminUsersList = async (req, res) => {
         u.profile_completed, 
         u.created_at,
         u.updated_at,
+        u.is_active,
         -- Dependents count
         COALESCE(dep_count.dependents_count, 0) as dependents_count,
         -- Vaccine statistics
@@ -191,33 +192,12 @@ export const getAdminUsersList = async (req, res) => {
 
     const users = dataRows.map(u => ({
       id: u.id,
-      encrypted_id: encryptUserId(u.id),
-      phone_number: u.phone_number,
-      full_name: u.full_name,
-      dob: u.dob,
-      gender: u.gender,
-      country: u.country,
-      address: u.address,
-      contact_no: u.contact_no,
-      material_status: u.material_status,
-      do_you_have_children: !!u.do_you_have_children,
-      how_many_children: u.how_many_children,
-      are_you_pregnant: !!u.are_you_pregnant,
-      pregnancy_detail: u.pregnancy_detail,
-      profile_completed: !!u.profile_completed,
-      created_at: u.created_at,
-      updated_at: u.updated_at,
-      // Additional statistics
-      dependents_count: u.dependents_count,
-      dependents: dependentsMap.get(u.id) || [],
-      vaccine_stats: {
-        total_vaccines: u.total_vaccines,
-        completed_vaccines: u.completed_vaccines,
-        overdue_vaccines: u.overdue_vaccines,
-        upcoming_vaccines: u.upcoming_vaccines,
-        last_vaccine_date: u.last_vaccine_date,
-        completion_percentage: u.total_vaccines > 0 ? Math.round((u.completed_vaccines / u.total_vaccines) * 100) : 0
-      }
+      image: null,
+      username: u.full_name || null,
+      email: null,
+      phoneNo: u.phone_number || null,
+      DOB: u.dob || null,
+      is_active: !!u.is_active
     }));
 
     return res.status(200).json({
