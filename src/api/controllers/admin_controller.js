@@ -4,6 +4,7 @@ import { decryptUserId } from '../../services/encryption_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
 import { getUserVaccinesGroupedByType } from '../../services/user_vaccines_service.js';
 import { getDependentsByUserId } from '../../services/dependents_service.js';
+import { getDependentById } from '../../services/dependents_service.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -113,6 +114,7 @@ export const getAdminUsersList = async (req, res) => {
         u.profile_completed, 
         u.created_at,
         u.updated_at,
+        u.is_active,
         -- Dependents count
         COALESCE(dep_count.dependents_count, 0) as dependents_count,
         -- Vaccine statistics
@@ -190,33 +192,12 @@ export const getAdminUsersList = async (req, res) => {
 
     const users = dataRows.map(u => ({
       id: u.id,
-      encrypted_id: encryptUserId(u.id),
-      phone_number: u.phone_number,
-      full_name: u.full_name,
-      dob: u.dob,
-      gender: u.gender,
-      country: u.country,
-      address: u.address,
-      contact_no: u.contact_no,
-      material_status: u.material_status,
-      do_you_have_children: !!u.do_you_have_children,
-      how_many_children: u.how_many_children,
-      are_you_pregnant: !!u.are_you_pregnant,
-      pregnancy_detail: u.pregnancy_detail,
-      profile_completed: !!u.profile_completed,
-      created_at: u.created_at,
-      updated_at: u.updated_at,
-      // Additional statistics
-      dependents_count: u.dependents_count,
-      dependents: dependentsMap.get(u.id) || [],
-      vaccine_stats: {
-        total_vaccines: u.total_vaccines,
-        completed_vaccines: u.completed_vaccines,
-        overdue_vaccines: u.overdue_vaccines,
-        upcoming_vaccines: u.upcoming_vaccines,
-        last_vaccine_date: u.last_vaccine_date,
-        completion_percentage: u.total_vaccines > 0 ? Math.round((u.completed_vaccines / u.total_vaccines) * 100) : 0
-      }
+      image: null,
+      username: u.full_name || null,
+      email: null,
+      phoneNo: u.phone_number || null,
+      DOB: u.dob || null,
+      is_active: !!u.is_active
     }));
 
     return res.status(200).json({
@@ -756,10 +737,10 @@ export const deleteAdminVaccine = async (req, res) => {
       });
     }
 
-    // Soft delete - add a deleted flag (we'll use notes field to mark as deleted)
+    // Soft delete - set is_active to 0
     const deleteSql = `
       UPDATE vaccines 
-      SET notes = CONCAT(IFNULL(notes, ''), ' [DELETED]'), updated_at = CURRENT_TIMESTAMP
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP
       WHERE vaccine_id = ?
     `;
 
@@ -772,16 +753,16 @@ export const deleteAdminVaccine = async (req, res) => {
       });
     }
 
-    logger.info(`Admin soft deleted vaccine: ${vaccine_id} (${existingVaccine.name})`);
+    logger.info(`Admin deleted vaccine: ${vaccine_id} (${existingVaccine.name})`);
 
     return res.status(200).json({
       success: true,
-      message: 'Vaccine deleted successfully (soft delete)',
+      message: 'Vaccine deleted successfully',
       data: {
         vaccine_id: parseInt(vaccine_id),
         vaccine_name: existingVaccine.name,
         deleted_at: new Date().toISOString(),
-        status: 'soft_deleted'
+        status: 'deleted'
       }
     });
 
@@ -1080,6 +1061,159 @@ export const deleteAdminUser = async (req, res) => {
   }
 };
 
+// Admin: Get dependent details (profile + vaccines grouped like user details)
+export const getAdminDependentDetails = async (req, res) => {
+  try {
+    const { admin_user_id, user_id, dependent_id } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id query parameter is required' });
+    }
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: 'user_id query parameter is required' });
+    }
+    if (!dependent_id) {
+      return res.status(400).json({ success: false, message: 'dependent_id query parameter is required' });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    // Use user_id as simple ID (like user-detail API) and dependent_id as encrypted
+    const actualUserId = parseInt(user_id, 10);
+    
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id, 10);
+    }
+    
+    if (!actualUserId || isNaN(actualUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user_id format' });
+    }
+    if (!actualDependentId) {
+      return res.status(400).json({ success: false, message: 'Invalid dependent_id format' });
+    }
+
+    // Get dependent and validate ownership
+    const depResult = await getDependentById(actualDependentId);
+    if (!depResult.success) {
+      return res.status(404).json({ success: false, message: 'Dependent not found' });
+    }
+    const dep = depResult.dependent;
+    if (dep.user_id !== actualUserId) {
+      return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
+    }
+
+    // Fetch vaccines grouped by type for this dependent
+    const vaccinesData = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId);
+
+    // Organize vaccines by status similar to user details
+    const vaccines = { completed: [], upcoming: [], dueSoon: [], overdue: [] };
+    Object.values(vaccinesData.groups || {}).forEach(list => {
+      list.forEach(v => {
+        switch (v.status) {
+          case 'completed':
+            vaccines.completed.push(v);
+            break;
+          case 'upcoming':
+            vaccines.upcoming.push(v);
+            break;
+          case 'due_soon':
+            vaccines.dueSoon.push(v);
+            break;
+          case 'overdue':
+            vaccines.overdue.push(v);
+            break;
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent details fetched successfully',
+      data: {
+        user_id: actualUserId,
+        dependent: {
+          id: dep.dependent_id || dep.id,
+          full_name: dep.full_name,
+          dob: dep.dob,
+          gender: dep.gender,
+          relation_type: dep.relation_type,
+          phone_number: dep.phone_number,
+          country: dep.country,
+          address: dep.address,
+          contact_no: dep.contact_no,
+          material_status: dep.material_status,
+          do_you_have_children: dep.do_you_have_children,
+          how_many_children: dep.how_many_children,
+          are_you_pregnant: dep.are_you_pregnant,
+          pregnancy_detail: dep.pregnancy_detail,
+          profile_completed: !!dep.profile_completed,
+          created_at: dep.created_at,
+          updated_at: dep.updated_at
+        },
+        vaccines
+      }
+    });
+  } catch (error) {
+    logger.error('getAdminDependentDetails error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * Add new vaccine - Admin API
+ * POST /api/admin/vaccine-add
+ * 
+ * Required Headers:
+ * - Authorization: Bearer <admin_token>
+ * 
+ * Required Fields:
+ * - admin_user_id: Admin user ID (encrypted or numeric)
+ * - name: Vaccine name (string)
+ * - type: Vaccine type (string) - e.g., "Mandatory", "Optional"
+ * - category: Vaccine category (string) - e.g., "Child", "Adult", "Pregnancy"
+ * - sub_category: Vaccine sub-category (string) - e.g., "Mandatory", "Recommended"
+ * - min_age_months: Minimum age in months (number)
+ * - frequency: Vaccine frequency (string) - e.g., "Single", "Multiple", "Booster"
+ * 
+ * Optional Fields:
+ * - max_age_months: Maximum age in months (number)
+ * - total_doses: Total number of doses (number)
+ * - when_to_give: When to give the vaccine (string)
+ * - dose: Vaccine dose information (string)
+ * - route: Administration route (string) - e.g., "Oral", "Injection", "Nasal"
+ * - site: Administration site (string) - e.g., "Arm", "Thigh", "Oral"
+ * - notes: Additional notes (string)
+ * 
+ * Example Request Body:
+ * {
+ *   "admin_user_id": "SLK_1_9b25065e",
+ *   "name": "OPV Booster",
+ *   "type": "Mandatory",
+ *   "category": "Child",
+ *   "sub_category": "Mandatory",
+ *   "min_age_months": 16,
+ *   "max_age_months": 24,
+ *   "total_doses": 1,
+ *   "frequency": "Booster",
+ *   "when_to_give": "16–24 months",
+ *   "dose": "2 drops",
+ *   "route": "Oral",
+ *   "site": "Oral",
+ *   "notes": "Mandatory."
+ * }
+ */
 export const addAdminVaccine = async (req, res) => {
   try {
     const {
@@ -1099,6 +1233,7 @@ export const addAdminVaccine = async (req, res) => {
       notes
     } = req.body;
 
+    // Validate required fields
     if (!admin_user_id) {
       return res.status(400).json({
         success: false,
@@ -1106,10 +1241,24 @@ export const addAdminVaccine = async (req, res) => {
       });
     }
 
-    if (!name || !type || !category || !sub_category || !frequency) {
+    // Validate vaccine required fields
+    const requiredFields = ['name', 'type', 'category', 'sub_category', 'frequency'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'name, type, category, sub_category, and frequency are required fields'
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        required_fields: requiredFields,
+        missing_fields: missingFields
+      });
+    }
+
+    // Validate min_age_months is provided and is a number
+    if (min_age_months === undefined || min_age_months === null || min_age_months === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'min_age_months is required and must be a number'
       });
     }
 
@@ -1140,7 +1289,7 @@ export const addAdminVaccine = async (req, res) => {
       });
     }
 
-    // Insert new vaccine
+    // Insert new vaccine with all fields
     const insertSql = `
       INSERT INTO vaccines (
         name, type, category, sub_category, min_age_months, max_age_months,
@@ -1149,35 +1298,46 @@ export const addAdminVaccine = async (req, res) => {
     `;
 
     const params = [
-      name,
-      type,
-      category,
-      sub_category,
+      name.trim(),
+      type.trim(),
+      category.trim(),
+      sub_category.trim(),
       parseInt(min_age_months) || 0,
       max_age_months ? parseInt(max_age_months) : null,
       total_doses ? parseInt(total_doses) : null,
-      frequency,
-      when_to_give || null,
-      dose || null,
-      route || null,
-      site || null,
-      notes || null
+      frequency.trim(),
+      when_to_give ? when_to_give.trim() : null,
+      dose ? dose.trim() : null,
+      route ? route.trim() : null,
+      site ? site.trim() : null,
+      notes ? notes.trim() : null
     ];
 
     const result = await query(insertSql, params);
 
     logger.info(`Admin added new vaccine: ${name} (ID: ${result.insertId})`);
 
+    // Return complete vaccine data
     return res.status(201).json({
       success: true,
       message: 'Vaccine added successfully',
       data: {
         vaccine_id: result.insertId,
-        name: name,
-        type: type,
-        category: category,
-        sub_category: sub_category,
-        created_at: new Date().toISOString()
+        name: name.trim(),
+        type: type.trim(),
+        category: category.trim(),
+        sub_category: sub_category.trim(),
+        min_age_months: parseInt(min_age_months) || 0,
+        max_age_months: max_age_months ? parseInt(max_age_months) : null,
+        total_doses: total_doses ? parseInt(total_doses) : null,
+        frequency: frequency.trim(),
+        when_to_give: when_to_give ? when_to_give.trim() : null,
+        dose: dose ? dose.trim() : null,
+        route: route ? route.trim() : null,
+        site: site ? site.trim() : null,
+        notes: notes ? notes.trim() : null,
+        created_at: new Date().toISOString(),
+        is_active: true
       }
     });
 

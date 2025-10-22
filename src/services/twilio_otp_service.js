@@ -159,7 +159,12 @@ const TEST_PHONE_NUMBERS = {
   '+923078775479': '123456',
   '+923078795665': '654321',
   '+923001234567': '111111',
-  '+923057220934': '123456'
+  '+923057220934': '123456',
+  '+923057220935': '123456',
+  '+923057220936': '123456',
+  '+923057220937': '123456',
+  '+923057220938': '123456',
+  '+923057220910': '123456'
 };
 
 export const sendOtpWithFallback = async (phoneNumber) => {
@@ -173,7 +178,8 @@ export const sendOtpWithFallback = async (phoneNumber) => {
       sessionId: session.sessionId,
       message: 'Test OTP ready (check console logs)',
       phoneNumber: phoneNumber,
-      isTestNumber: true
+      isTestNumber: true,
+      otp: TEST_PHONE_NUMBERS[phoneNumber]
     };
   }
 

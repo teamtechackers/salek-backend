@@ -44,11 +44,24 @@ export const addDependent = async (dependentData) => {
     ];
 
     const result = await query(sql, params);
-    logger.info(`Dependent added successfully: ID ${result.insertId}, User ID: ${dependentData.userId}`);
+    const dependentId = result.insertId;
+    
+    // Auto-generate vaccines for the dependent if DOB is provided
+    if (dependentData.dob) {
+      try {
+        const { generateUserVaccines } = await import('./user_vaccines_service.js');
+        await generateUserVaccines(dependentData.userId, dependentId);
+        logger.info(`Vaccines auto-generated for dependent: ${dependentId}`);
+      } catch (vaccineError) {
+        logger.warn(`Failed to generate vaccines for dependent ${dependentId}:`, vaccineError.message);
+      }
+    }
+    
+    logger.info(`Dependent added successfully: ID ${dependentId}, User ID: ${dependentData.userId}`);
     
     return {
       success: true,
-      dependentId: result.insertId,
+      dependentId: dependentId,
       message: DEPENDENTS_MESSAGES.DEPENDENT_ADDED
     };
   } catch (error) {
@@ -161,6 +174,21 @@ export const updateDependentProfile = async (dependentId, profileData) => {
         success: false,
         error: DEPENDENTS_MESSAGES.DEPENDENT_NOT_FOUND
       };
+    }
+    
+    // If DOB is being updated, regenerate vaccines for the dependent
+    if (profileData.dob) {
+      try {
+        // Get user_id for this dependent
+        const userResult = await query(`SELECT ${DEPENDENTS_FIELDS.USER_ID} FROM ${DEPENDENTS_TABLE} WHERE ${DEPENDENTS_FIELDS.DEPENDENT_ID} = ?`, [dependentId]);
+        if (userResult.length > 0) {
+          const { generateUserVaccines } = await import('./user_vaccines_service.js');
+          await generateUserVaccines(userResult[0].user_id, dependentId);
+          logger.info(`Vaccines regenerated for dependent: ${dependentId}`);
+        }
+      } catch (vaccineError) {
+        logger.warn(`Failed to regenerate vaccines for dependent ${dependentId}:`, vaccineError.message);
+      }
     }
     
     logger.info(`Dependent profile updated: ID ${dependentId}`);
