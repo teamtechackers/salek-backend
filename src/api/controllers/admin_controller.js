@@ -756,10 +756,10 @@ export const deleteAdminVaccine = async (req, res) => {
       });
     }
 
-    // Soft delete - add a deleted flag (we'll use notes field to mark as deleted)
+    // Soft delete - set is_active to 0
     const deleteSql = `
       UPDATE vaccines 
-      SET notes = CONCAT(IFNULL(notes, ''), ' [DELETED]'), updated_at = CURRENT_TIMESTAMP
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP
       WHERE vaccine_id = ?
     `;
 
@@ -772,16 +772,16 @@ export const deleteAdminVaccine = async (req, res) => {
       });
     }
 
-    logger.info(`Admin soft deleted vaccine: ${vaccine_id} (${existingVaccine.name})`);
+    logger.info(`Admin deleted vaccine: ${vaccine_id} (${existingVaccine.name})`);
 
     return res.status(200).json({
       success: true,
-      message: 'Vaccine deleted successfully (soft delete)',
+      message: 'Vaccine deleted successfully',
       data: {
         vaccine_id: parseInt(vaccine_id),
         vaccine_name: existingVaccine.name,
         deleted_at: new Date().toISOString(),
-        status: 'soft_deleted'
+        status: 'deleted'
       }
     });
 
@@ -1080,6 +1080,49 @@ export const deleteAdminUser = async (req, res) => {
   }
 };
 
+/**
+ * Add new vaccine - Admin API
+ * POST /api/admin/vaccine-add
+ * 
+ * Required Headers:
+ * - Authorization: Bearer <admin_token>
+ * 
+ * Required Fields:
+ * - admin_user_id: Admin user ID (encrypted or numeric)
+ * - name: Vaccine name (string)
+ * - type: Vaccine type (string) - e.g., "Mandatory", "Optional"
+ * - category: Vaccine category (string) - e.g., "Child", "Adult", "Pregnancy"
+ * - sub_category: Vaccine sub-category (string) - e.g., "Mandatory", "Recommended"
+ * - min_age_months: Minimum age in months (number)
+ * - frequency: Vaccine frequency (string) - e.g., "Single", "Multiple", "Booster"
+ * 
+ * Optional Fields:
+ * - max_age_months: Maximum age in months (number)
+ * - total_doses: Total number of doses (number)
+ * - when_to_give: When to give the vaccine (string)
+ * - dose: Vaccine dose information (string)
+ * - route: Administration route (string) - e.g., "Oral", "Injection", "Nasal"
+ * - site: Administration site (string) - e.g., "Arm", "Thigh", "Oral"
+ * - notes: Additional notes (string)
+ * 
+ * Example Request Body:
+ * {
+ *   "admin_user_id": "SLK_1_9b25065e",
+ *   "name": "OPV Booster",
+ *   "type": "Mandatory",
+ *   "category": "Child",
+ *   "sub_category": "Mandatory",
+ *   "min_age_months": 16,
+ *   "max_age_months": 24,
+ *   "total_doses": 1,
+ *   "frequency": "Booster",
+ *   "when_to_give": "16–24 months",
+ *   "dose": "2 drops",
+ *   "route": "Oral",
+ *   "site": "Oral",
+ *   "notes": "Mandatory."
+ * }
+ */
 export const addAdminVaccine = async (req, res) => {
   try {
     const {
@@ -1099,6 +1142,7 @@ export const addAdminVaccine = async (req, res) => {
       notes
     } = req.body;
 
+    // Validate required fields
     if (!admin_user_id) {
       return res.status(400).json({
         success: false,
@@ -1106,10 +1150,24 @@ export const addAdminVaccine = async (req, res) => {
       });
     }
 
-    if (!name || !type || !category || !sub_category || !frequency) {
+    // Validate vaccine required fields
+    const requiredFields = ['name', 'type', 'category', 'sub_category', 'frequency'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'name, type, category, sub_category, and frequency are required fields'
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        required_fields: requiredFields,
+        missing_fields: missingFields
+      });
+    }
+
+    // Validate min_age_months is provided and is a number
+    if (min_age_months === undefined || min_age_months === null || min_age_months === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'min_age_months is required and must be a number'
       });
     }
 
@@ -1140,7 +1198,7 @@ export const addAdminVaccine = async (req, res) => {
       });
     }
 
-    // Insert new vaccine
+    // Insert new vaccine with all fields
     const insertSql = `
       INSERT INTO vaccines (
         name, type, category, sub_category, min_age_months, max_age_months,
@@ -1149,35 +1207,46 @@ export const addAdminVaccine = async (req, res) => {
     `;
 
     const params = [
-      name,
-      type,
-      category,
-      sub_category,
+      name.trim(),
+      type.trim(),
+      category.trim(),
+      sub_category.trim(),
       parseInt(min_age_months) || 0,
       max_age_months ? parseInt(max_age_months) : null,
       total_doses ? parseInt(total_doses) : null,
-      frequency,
-      when_to_give || null,
-      dose || null,
-      route || null,
-      site || null,
-      notes || null
+      frequency.trim(),
+      when_to_give ? when_to_give.trim() : null,
+      dose ? dose.trim() : null,
+      route ? route.trim() : null,
+      site ? site.trim() : null,
+      notes ? notes.trim() : null
     ];
 
     const result = await query(insertSql, params);
 
     logger.info(`Admin added new vaccine: ${name} (ID: ${result.insertId})`);
 
+    // Return complete vaccine data
     return res.status(201).json({
       success: true,
       message: 'Vaccine added successfully',
       data: {
         vaccine_id: result.insertId,
-        name: name,
-        type: type,
-        category: category,
-        sub_category: sub_category,
-        created_at: new Date().toISOString()
+        name: name.trim(),
+        type: type.trim(),
+        category: category.trim(),
+        sub_category: sub_category.trim(),
+        min_age_months: parseInt(min_age_months) || 0,
+        max_age_months: max_age_months ? parseInt(max_age_months) : null,
+        total_doses: total_doses ? parseInt(total_doses) : null,
+        frequency: frequency.trim(),
+        when_to_give: when_to_give ? when_to_give.trim() : null,
+        dose: dose ? dose.trim() : null,
+        route: route ? route.trim() : null,
+        site: site ? site.trim() : null,
+        notes: notes ? notes.trim() : null,
+        created_at: new Date().toISOString(),
+        is_active: true
       }
     });
 
