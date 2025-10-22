@@ -4,6 +4,7 @@ import { decryptUserId } from '../../services/encryption_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
 import { getUserVaccinesGroupedByType } from '../../services/user_vaccines_service.js';
 import { getDependentsByUserId } from '../../services/dependents_service.js';
+import { getDependentById } from '../../services/dependents_service.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -1077,6 +1078,116 @@ export const deleteAdminUser = async (req, res) => {
       message: 'Internal server error',
       error: error.message
     });
+  }
+};
+
+// Admin: Get dependent details (profile + vaccines grouped like user details)
+export const getAdminDependentDetails = async (req, res) => {
+  try {
+    const { admin_user_id, user_id, dependent_id } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id query parameter is required' });
+    }
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: 'user_id query parameter is required' });
+    }
+    if (!dependent_id) {
+      return res.status(400).json({ success: false, message: 'dependent_id query parameter is required' });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    // Use user_id as simple ID (like user-detail API) and dependent_id as encrypted
+    const actualUserId = parseInt(user_id, 10);
+    
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id, 10);
+    }
+    
+    if (!actualUserId || isNaN(actualUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user_id format' });
+    }
+    if (!actualDependentId) {
+      return res.status(400).json({ success: false, message: 'Invalid dependent_id format' });
+    }
+
+    // Get dependent and validate ownership
+    const depResult = await getDependentById(actualDependentId);
+    if (!depResult.success) {
+      return res.status(404).json({ success: false, message: 'Dependent not found' });
+    }
+    const dep = depResult.dependent;
+    if (dep.user_id !== actualUserId) {
+      return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
+    }
+
+    // Fetch vaccines grouped by type for this dependent
+    const vaccinesData = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId);
+
+    // Organize vaccines by status similar to user details
+    const vaccines = { completed: [], upcoming: [], dueSoon: [], overdue: [] };
+    Object.values(vaccinesData.groups || {}).forEach(list => {
+      list.forEach(v => {
+        switch (v.status) {
+          case 'completed':
+            vaccines.completed.push(v);
+            break;
+          case 'upcoming':
+            vaccines.upcoming.push(v);
+            break;
+          case 'due_soon':
+            vaccines.dueSoon.push(v);
+            break;
+          case 'overdue':
+            vaccines.overdue.push(v);
+            break;
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent details fetched successfully',
+      data: {
+        user_id: actualUserId,
+        dependent: {
+          id: dep.dependent_id || dep.id,
+          full_name: dep.full_name,
+          dob: dep.dob,
+          gender: dep.gender,
+          relation_type: dep.relation_type,
+          phone_number: dep.phone_number,
+          country: dep.country,
+          address: dep.address,
+          contact_no: dep.contact_no,
+          material_status: dep.material_status,
+          do_you_have_children: dep.do_you_have_children,
+          how_many_children: dep.how_many_children,
+          are_you_pregnant: dep.are_you_pregnant,
+          pregnancy_detail: dep.pregnancy_detail,
+          profile_completed: !!dep.profile_completed,
+          created_at: dep.created_at,
+          updated_at: dep.updated_at
+        },
+        vaccines
+      }
+    });
+  } catch (error) {
+    logger.error('getAdminDependentDetails error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
