@@ -18,7 +18,10 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'https://salek-frontend.onrender.com'
+  ],
   credentials: true,
 }));
 
