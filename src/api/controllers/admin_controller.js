@@ -299,12 +299,7 @@ export const getAdminUserDetails = async (req, res) => {
 
     // Get user's vaccines grouped by status
     const yearsAhead = parseInt(years_ahead) || 2; // Default to 2 years if not provided
-    console.log('Admin API - calling getUserVaccinesGroupedByType with yearsAhead:', yearsAhead);
     const vaccinesData = await getUserVaccinesGroupedByType(userId, false, null, null, yearsAhead);
-    
-    console.log('Admin API - vaccinesData success:', vaccinesData.success);
-    console.log('Admin API - vaccinesData groups keys:', Object.keys(vaccinesData.groups || {}));
-    console.log('Admin API - total vaccines:', Object.values(vaccinesData.groups || {}).flat().length);
     
     // Organize vaccines by status
     const vaccines = {
@@ -318,7 +313,6 @@ export const getAdminUserDetails = async (req, res) => {
     if (vaccinesData.success && vaccinesData.groups) {
       Object.values(vaccinesData.groups).forEach(vaccineList => {
         vaccineList.forEach(vaccine => {
-          console.log('Processing vaccine:', vaccine.vaccine_name, 'status:', vaccine.status);
           switch (vaccine.status) {
             case 'completed':
               vaccines.completed.push(vaccine);
