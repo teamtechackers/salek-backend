@@ -100,6 +100,144 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const updateProfileBasic = async (req, res) => {
+  try {
+    const {
+      user_id,
+      full_name,
+      gender,
+      country,
+      address,
+      material_status,
+      do_you_have_children,
+      how_many_children,
+      are_you_pregnant,
+      pregnancy_detail
+    } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Decrypt user ID if needed
+    let actualUserId;
+    if (isNaN(user_id)) {
+      actualUserId = decryptUserId(user_id);
+    } else {
+      actualUserId = parseInt(user_id);
+    }
+
+    if (!actualUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    if (gender && !GENDER_OPTIONS.includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: PROFILE_MESSAGES.INVALID_DATA
+      });
+    }
+
+    if (material_status && !MATERIAL_STATUS_OPTIONS.includes(material_status)) {
+      return res.status(400).json({
+        success: false,
+        message: PROFILE_MESSAGES.INVALID_DATA
+      });
+    }
+
+    // Build update query with allowed fields only (excluding DOB and phone_number)
+    const updateFields = [];
+    const params = [];
+
+    if (full_name !== undefined) {
+      updateFields.push('full_name = ?');
+      params.push(full_name);
+    }
+    if (gender !== undefined) {
+      updateFields.push('gender = ?');
+      params.push(gender);
+    }
+    if (country !== undefined) {
+      updateFields.push('country = ?');
+      params.push(country);
+    }
+    if (address !== undefined) {
+      updateFields.push('address = ?');
+      params.push(address);
+    }
+    // contact_no is excluded (cannot be edited)
+    if (material_status !== undefined) {
+      updateFields.push('material_status = ?');
+      params.push(material_status);
+    }
+    if (do_you_have_children !== undefined) {
+      updateFields.push('do_you_have_children = ?');
+      params.push(do_you_have_children ? 1 : 0);
+    }
+    if (how_many_children !== undefined) {
+      updateFields.push('how_many_children = ?');
+      params.push(how_many_children);
+    }
+    if (are_you_pregnant !== undefined) {
+      updateFields.push('are_you_pregnant = ?');
+      params.push(are_you_pregnant ? 1 : 0);
+    }
+    if (pregnancy_detail !== undefined) {
+      updateFields.push('pregnancy_detail = ?');
+      params.push(pregnancy_detail);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update'
+      });
+    }
+
+    // Add updated_at and user_id
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(actualUserId);
+
+    // Import query function
+    const { query } = await import('../../config/database.js');
+    
+    const updateSql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+    const result = await query(updateSql, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found or no changes made'
+      });
+    }
+
+    logger.info(`User updated basic profile: ${actualUserId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user_id: encryptUserId(actualUserId),
+        updated_fields: updateFields.filter(field => !field.includes('updated_at'))
+      }
+    });
+
+  } catch (error) {
+    logger.error('Basic profile update error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 export const getProfile = async (req, res) => {
   try {
     const { user_id } = req.query;
