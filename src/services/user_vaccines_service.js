@@ -293,9 +293,11 @@ export const generateUserVaccines = async (userId, dependentId = null, yearsAhea
     let vaccines;
     
     // Get ALL vaccines regardless of age - complete schedule from birth to 60+ years
+    // Exclude deleted vaccines (is_active = 0)
     vaccinesSql = `
       SELECT * FROM ${VACCINES_TABLE}
       WHERE ${VACCINES_FIELDS.IS_ACTIVE} = true 
+        AND (${VACCINES_FIELDS.NOTES} IS NULL OR ${VACCINES_FIELDS.NOTES} NOT LIKE '%[DELETED]%')
       ORDER BY ${VACCINES_FIELDS.MIN_AGE_MONTHS} ASC
     `;
     vaccines = await query(vaccinesSql);
