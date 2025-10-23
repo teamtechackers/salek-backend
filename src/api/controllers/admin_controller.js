@@ -225,7 +225,7 @@ export const getAdminUsersList = async (req, res) => {
 
 export const getAdminUserDetails = async (req, res) => {
   try {
-    const { user_id, admin_user_id } = req.query;
+    const { user_id, admin_user_id, years_ahead } = req.query;
     
     if (!user_id) {
       return res.status(400).json({ 
@@ -298,7 +298,8 @@ export const getAdminUserDetails = async (req, res) => {
     const dependents = dependentsResult?.dependents || [];
 
     // Get user's vaccines grouped by status
-    const vaccinesData = await getUserVaccinesGroupedByType(userId, false, null, null);
+    const yearsAhead = parseInt(years_ahead) || 2; // Default to 2 years if not provided
+    const vaccinesData = await getUserVaccinesGroupedByType(userId, false, null, null, yearsAhead);
     
     // Organize vaccines by status
     const vaccines = {
@@ -309,23 +310,36 @@ export const getAdminUserDetails = async (req, res) => {
     };
 
     // Process all vaccine groups and categorize by status
-    Object.values(vaccinesData.groups || {}).forEach(vaccineList => {
-      vaccineList.forEach(vaccine => {
-        switch (vaccine.status) {
-          case 'completed':
-            vaccines.completed.push(vaccine);
-            break;
-          case 'upcoming':
-            vaccines.upcoming.push(vaccine);
-            break;
-          case 'due_soon':
-            vaccines.dueSoon.push(vaccine);
-            break;
-          case 'overdue':
-            vaccines.overdue.push(vaccine);
-            break;
-        }
+    if (vaccinesData.success && vaccinesData.groups) {
+      Object.values(vaccinesData.groups).forEach(vaccineList => {
+        vaccineList.forEach(vaccine => {
+          switch (vaccine.status) {
+            case 'completed':
+              vaccines.completed.push(vaccine);
+              break;
+            case 'upcoming':
+              vaccines.upcoming.push(vaccine);
+              break;
+            case 'due_soon':
+              vaccines.dueSoon.push(vaccine);
+              break;
+            case 'overdue':
+              vaccines.overdue.push(vaccine);
+              break;
+            default:
+              // Handle any other statuses
+              vaccines.upcoming.push(vaccine);
+              break;
+          }
+        });
       });
+    }
+    
+    console.log('Admin API - final vaccines counts:', {
+      completed: vaccines.completed.length,
+      upcoming: vaccines.upcoming.length,
+      dueSoon: vaccines.dueSoon.length,
+      overdue: vaccines.overdue.length
     });
 
     return res.status(200).json({
