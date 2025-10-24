@@ -97,10 +97,25 @@ export const updateProfile = async (req, res) => {
 
       logger.info(`Profile updated for user: ${actualUserId}`);
 
+      // Get updated user profile data
+      const { getUserProfile } = await import('../../services/user_service.js');
+      const userResult = await getUserProfile(actualUserId);
+      
+      if (!userResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Profile updated but failed to fetch updated data'
+        });
+      }
+
+      const user = userResult.user;
+      user.id = encryptUserId(user.id);
+
       return res.status(200).json({
         success: true,
         message: PROFILE_MESSAGES.PROFILE_UPDATED,
         data: {
+          ...user,
           encryptedUserId: encryptUserId(actualUserId)
         }
       });
@@ -250,12 +265,26 @@ export const updateProfileBasic = async (req, res) => {
 
       logger.info(`User updated basic profile: ${actualUserId}`);
 
+      // Get updated user profile data
+      const { getUserProfile } = await import('../../services/user_service.js');
+      const userResult = await getUserProfile(actualUserId);
+      
+      if (!userResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Profile updated but failed to fetch updated data'
+        });
+      }
+
+      const user = userResult.user;
+      user.id = encryptUserId(user.id);
+
       return res.status(200).json({
         success: true,
-        message: 'Profile updated successfully',
+        message: PROFILE_MESSAGES.PROFILE_UPDATED,
         data: {
-          user_id: encryptUserId(actualUserId),
-          updated_fields: updateFields.filter(field => !field.includes('updated_at'))
+          ...user,
+          encryptedUserId: encryptUserId(actualUserId)
         }
       });
 
