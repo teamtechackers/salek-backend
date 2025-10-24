@@ -30,3 +30,5 @@ export const DASHBOARD_MESSAGES = {
 
 export const GENDER_OPTIONS = ['male', 'female', 'other'];
 export const MATERIAL_STATUS_OPTIONS = ['single', 'married', 'divorced', 'widowed'];
+
+export const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';

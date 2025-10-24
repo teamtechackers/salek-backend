@@ -38,6 +38,7 @@ export const USER_FIELDS = {
   ARE_YOU_PREGNANT: 'are_you_pregnant',
   PREGNANCY_DETAIL: 'pregnancy_detail',
   PROFILE_COMPLETED: 'profile_completed',
+  IMAGE: 'image',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
   IS_ACTIVE: 'is_active'

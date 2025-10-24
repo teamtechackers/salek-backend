@@ -1,5 +1,6 @@
 import { query } from '../config/database.js';
 import { USER_TABLE, USER_FIELDS } from '../models/user_model.js';
+import { BASE_URL } from '../config/constants.js';
 import logger from '../config/logger.js';
 
 export const createUser = async (phoneNumber) => {
@@ -131,7 +132,8 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
       doYouHaveChildren,
       howManyChildren,
       areYouPregnant,
-      pregnancyDetail
+      pregnancyDetail,
+      image
     } = profileData;
 
     const sql = `
@@ -148,6 +150,7 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
         ${USER_FIELDS.HOW_MANY_CHILDREN} = ?,
         ${USER_FIELDS.ARE_YOU_PREGNANT} = ?,
         ${USER_FIELDS.PREGNANCY_DETAIL} = ?,
+        ${USER_FIELDS.IMAGE} = ?,
         ${USER_FIELDS.PROFILE_COMPLETED} = TRUE,
         ${USER_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
       WHERE ${USER_FIELDS.ID} = ?
@@ -165,6 +168,7 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
       howManyChildren !== undefined ? howManyChildren : 0,
       areYouPregnant !== undefined ? areYouPregnant : 0,
       pregnancyDetail !== undefined ? pregnancyDetail : null,
+      image !== undefined ? image : null,
       userId
     ];
 
@@ -208,6 +212,7 @@ export const getUserProfile = async (userId) => {
         ${USER_FIELDS.ARE_YOU_PREGNANT},
         ${USER_FIELDS.PREGNANCY_DETAIL},
         ${USER_FIELDS.PROFILE_COMPLETED},
+        ${USER_FIELDS.IMAGE},
         ${USER_FIELDS.CREATED_AT}
       FROM ${USER_TABLE} 
       WHERE ${USER_FIELDS.ID} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
@@ -222,9 +227,16 @@ export const getUserProfile = async (userId) => {
       };
     }
 
+    const user = result[0];
+    
+    // Add complete image URL if image exists
+    if (user.image) {
+      user.image = `${BASE_URL}${user.image}`;
+    }
+
     return {
       success: true,
-      user: result[0]
+      user: user
     };
   } catch (error) {
     return {
