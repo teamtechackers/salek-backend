@@ -5,6 +5,7 @@ import { encryptUserId } from '../../services/encryption_service.js';
 import { getUserVaccinesGroupedByType } from '../../services/user_vaccines_service.js';
 import { getDependentsByUserId } from '../../services/dependents_service.js';
 import { getDependentById } from '../../services/dependents_service.js';
+import { BASE_URL } from '../../config/constants.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -112,6 +113,7 @@ export const getAdminUsersList = async (req, res) => {
         u.are_you_pregnant,
         u.pregnancy_detail,
         u.profile_completed, 
+        u.image,
         u.created_at,
         u.updated_at,
         u.is_active,
@@ -193,7 +195,7 @@ export const getAdminUsersList = async (req, res) => {
     const users = dataRows.map(u => ({
       id: u.id,
       encrypted_id: encryptUserId(u.id),
-      image: null,
+      image: u.image ? `${BASE_URL}${u.image}` : null,
       username: u.full_name || null,
       email: null,
       phoneNo: u.phone_number || null,
