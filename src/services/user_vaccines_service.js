@@ -830,7 +830,7 @@ export const getUserVaccinesGroupedByType = async (userId, excludeCompleted = fa
         v.site,
         CASE
           WHEN uv.status = 'completed' THEN 0
-          WHEN uv.status = 'overdue' THEN DATEDIFF(CURDATE(), uv.scheduled_date)
+          WHEN uv.status = 'overdue' THEN 0
           ELSE DATEDIFF(uv.scheduled_date, CURDATE())
         END as days_remaining,
         CASE
