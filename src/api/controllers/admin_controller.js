@@ -900,10 +900,11 @@ export const updateAdminUser = async (req, res) => {
       updateFields.push('phone_number = ?');
       updateValues.push(phone_number);
     }
-    if (dob !== undefined) {
-      updateFields.push('dob = ?');
-      updateValues.push(dob);
-    }
+    // DOB field is intentionally ignored - not allowed to be updated
+    // if (dob !== undefined) {
+    //   updateFields.push('dob = ?');
+    //   updateValues.push(dob);
+    // }
     if (gender !== undefined) {
       updateFields.push('gender = ?');
       updateValues.push(gender);
