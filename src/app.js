@@ -26,10 +26,15 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
+
+// Serve static files with proper configuration
+const uploadsPath = path.join(__dirname, '../public/uploads');
+console.log('📁 Uploads path:', uploadsPath);
+app.use('/uploads', express.static(uploadsPath, {
   maxAge: '1y', // Cache for 1 year
   etag: true,
-  lastModified: true
+  lastModified: true,
+  immutable: true // Tell browsers the file won't change
 }));
 
 app.use('/api/auth', authRoutes);
@@ -70,8 +75,16 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404 handler
+// 404 handler - but not for static files
 app.use((req, res) => {
+  // Skip 404 for static file requests that are already handled
+  if (req.path.startsWith('/uploads/')) {
+    return res.status(404).json({
+      success: false,
+      message: 'Image not found'
+    });
+  }
+  
   res.status(404).json({
     success: false,
     message: 'Route not found',
