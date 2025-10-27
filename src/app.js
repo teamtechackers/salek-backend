@@ -26,7 +26,11 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
+  maxAge: '1y', // Cache for 1 year
+  etag: true,
+  lastModified: true
+}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);

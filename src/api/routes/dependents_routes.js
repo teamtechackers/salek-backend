@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
+import { uploadProfileImage } from '../../middleware/upload_middleware.js';
 import {
   addDependentAPI,
   getDependentsAPI,
@@ -12,7 +13,7 @@ import {
 const router = express.Router();
 
 // Add a new dependent
-router.post('/add-dependent', authenticateToken, addDependentAPI);
+router.post('/add-dependent', authenticateToken, uploadProfileImage, addDependentAPI);
 
 // Get all dependents for a user
 router.get('/get-dependents', authenticateToken, getDependentsAPI);

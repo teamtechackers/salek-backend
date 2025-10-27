@@ -21,8 +21,9 @@ export const addDependent = async (dependentData) => {
         ${DEPENDENTS_FIELDS.HOW_MANY_CHILDREN},
         ${DEPENDENTS_FIELDS.ARE_YOU_PREGNANT},
         ${DEPENDENTS_FIELDS.PREGNANCY_DETAIL},
-        ${DEPENDENTS_FIELDS.PROFILE_COMPLETED}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ${DEPENDENTS_FIELDS.PROFILE_COMPLETED},
+        ${DEPENDENTS_FIELDS.IMAGE}
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
@@ -40,7 +41,8 @@ export const addDependent = async (dependentData) => {
       dependentData.howManyChildren !== undefined ? dependentData.howManyChildren : 0,
       dependentData.areYouPregnant !== undefined ? dependentData.areYouPregnant : 0,
       dependentData.pregnancyDetail || null,
-      dependentData.profileCompleted !== undefined ? dependentData.profileCompleted : 0
+      dependentData.profileCompleted !== undefined ? dependentData.profileCompleted : 0,
+      dependentData.image || null
     ];
 
     const result = await query(sql, params);

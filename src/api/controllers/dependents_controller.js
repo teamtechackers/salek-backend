@@ -7,6 +7,8 @@ import {
 } from '../../services/dependents_service.js';
 import { generateUserVaccines } from '../../services/user_vaccines_service.js';
 import { decryptUserId, encryptUserId } from '../../services/encryption_service.js';
+import { uploadProfileImage } from '../../middleware/upload_middleware.js';
+import { BASE_URL } from '../../config/constants.js';
 import logger from '../../config/logger.js';
 
 // Add a new dependent
@@ -27,6 +29,9 @@ export const addDependentAPI = async (req, res) => {
       are_you_pregnant,
       pregnancy_detail
     } = req.body;
+
+    // Handle image upload
+    const image = req.file ? `/uploads/profiles/${req.file.filename}` : req.body.image;
 
     if (!user_id) {
       return res.status(400).json({
@@ -64,6 +69,7 @@ export const addDependentAPI = async (req, res) => {
       howManyChildren: how_many_children,
       areYouPregnant: are_you_pregnant,
       pregnancyDetail: pregnancy_detail,
+      image: image,
       profileCompleted: !!(full_name && dob) ? 1 : 0
     };
 
@@ -108,6 +114,7 @@ export const addDependentAPI = async (req, res) => {
           how_many_children: how_many_children,
           are_you_pregnant: are_you_pregnant,
           pregnancy_detail: pregnancy_detail,
+          image: image ? `${BASE_URL}${image}` : null,
           profile_completed: dependentData.profileCompleted
         },
         vaccines_generated: vaccineResult.success ? vaccineResult.addedCount : 0
@@ -182,6 +189,7 @@ export const getDependentsAPI = async (req, res) => {
           how_many_children: dependent.how_many_children,
           are_you_pregnant: dependent.are_you_pregnant,
           pregnancy_detail: dependent.pregnancy_detail,
+          image: dependent.image ? `${BASE_URL}${dependent.image}` : null,
           profile_completed: dependent.profile_completed,
           created_at: dependent.created_at,
           updated_at: dependent.updated_at
@@ -254,6 +262,7 @@ export const getDependentAPI = async (req, res) => {
           how_many_children: result.dependent.how_many_children,
           are_you_pregnant: result.dependent.are_you_pregnant,
           pregnancy_detail: result.dependent.pregnancy_detail,
+          image: result.dependent.image ? `${BASE_URL}${result.dependent.image}` : null,
           profile_completed: result.dependent.profile_completed,
           created_at: result.dependent.created_at,
           updated_at: result.dependent.updated_at
