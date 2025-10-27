@@ -70,3 +70,6 @@ yarn.lock
 # .nuxt/
 # out/
 # public/
+
+# Persistent uploads (user uploads will survive server restarts)
+persistent_uploads/
