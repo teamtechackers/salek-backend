@@ -18,15 +18,7 @@ const vaccineStorage = multer.diskStorage({
 
 const profileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use persistent storage folder to survive server restarts
-    // On Render.com, use /opt/render/project/src/persistent_uploads/profiles if Render disk mounted
-    // Otherwise, fall back to ../persistent_uploads/profiles (local development)
-    const isRender = process.env.RENDER === 'true';
-    const persistentDiskPath = '/opt/render/project/src/persistent_uploads/profiles';
-    const persistentLocalPath = path.join(__dirname, '../../persistent_uploads/profiles');
-    const persistentPath = isRender ? persistentDiskPath : persistentLocalPath;
-    
-    cb(null, persistentPath);
+    cb(null, path.join(__dirname, '../../public/uploads/profiles'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

@@ -28,37 +28,14 @@ app.use(cors({
 app.use(express.json());
 
 // Serve static files with proper configuration
-// Use persistent storage folder for profiles to survive server restarts
-// On Render.com, use /opt/render/project/src/persistent_uploads if Render disk mounted
-// Otherwise, fall back to ../persistent_uploads (local development)
-
-// Check if we're on Render with persistent disk
-const isRender = process.env.RENDER === 'true';
-const persistentDiskPath = '/opt/render/project/src/persistent_uploads';
-const persistentLocalPath = path.join(__dirname, '../persistent_uploads');
-const persistentUploadsPath = isRender && persistentDiskPath ? persistentDiskPath : persistentLocalPath;
-
-const publicUploadsPath = path.join(__dirname, '../public/uploads');
-
-// Serve profile images from persistent storage
-app.use('/uploads/profiles', express.static(persistentUploadsPath, {
+const uploadsPath = path.join(__dirname, '../public/uploads');
+console.log('📁 Uploads path:', uploadsPath);
+app.use('/uploads', express.static(uploadsPath, {
   maxAge: '1y', // Cache for 1 year
   etag: true,
   lastModified: true,
   immutable: true // Tell browsers the file won't change
 }));
-
-// Serve vaccine images from public uploads (if needed)
-app.use('/uploads/vaccines', express.static(publicUploadsPath, {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true,
-  immutable: true
-}));
-
-console.log('📁 Persistent uploads path:', persistentUploadsPath);
-console.log('📁 Public uploads path:', publicUploadsPath);
-console.log('🌐 Running on Render:', isRender);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
