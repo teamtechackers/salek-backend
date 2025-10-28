@@ -47,8 +47,8 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+// Handle preflight requests explicitly (avoid path-to-regexp '*' issue)
+app.options('/api/*', cors());
 
 // Serve static files with proper configuration
 const uploadsPath = path.join(__dirname, '../public/uploads');
