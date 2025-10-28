@@ -379,15 +379,18 @@ export const getAdminUserDetails = async (req, res) => {
           created_at: user.created_at,
           updated_at: user.updated_at
         },
-        dependents: dependents.map(dep => ({
-          id: dep.id,
-          dependent_id: dep.id,
-          full_name: dep.full_name,
-          dob: dep.dob,
-          gender: dep.gender,
-          relation_type: dep.relation_type,
-          created_at: dep.created_at
-        })),
+        dependents: dependents.map(dep => {
+          console.log('🔍 Mapping dependent:', dep.id, dep.full_name);
+          return {
+            id: dep.id,
+            dependent_id: dep.id,
+            full_name: dep.full_name,
+            dob: dep.dob,
+            gender: dep.gender,
+            relation_type: dep.relation_type,
+            created_at: dep.created_at
+          };
+        }),
         vaccines
       }
     });
