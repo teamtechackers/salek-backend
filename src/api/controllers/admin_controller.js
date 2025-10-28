@@ -1393,7 +1393,15 @@ export const addAdminVaccine = async (req, res) => {
 export const updateAdminDependent = async (req, res) => {
   try {
     const { admin_user_id, user_id, dependent_id } = req.query;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+    
+    // Handle image upload from multer
+    if (req.file) {
+      updateData.image = req.file.path;
+    } else if (req.body.image) {
+      // Keep existing image if provided in body
+      updateData.image = req.body.image;
+    }
 
     if (!admin_user_id) {
       return res.status(400).json({ success: false, message: 'admin_user_id query parameter is required' });

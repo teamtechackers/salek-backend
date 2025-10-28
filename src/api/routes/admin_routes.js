@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { requireSuperAdmin } from '../../middleware/admin_middleware.js';
+import { uploadProfileImage } from '../../middleware/upload_middleware.js';
 import { getDashboardStats, getAdminUsersList, getAdminUserDetails, getAdminAllVaccines, addAdminVaccine, updateAdminVaccine, deleteAdminVaccine, updateAdminUser, deleteAdminUser, getAdminDependentDetails, updateAdminDependent, deleteAdminDependent } from '../controllers/admin_controller.js';
 import { adminLogin } from '../controllers/admin_auth_controller.js';
 
@@ -15,7 +16,7 @@ router.get('/dashboard', getDashboardStats);
 router.get('/users', getAdminUsersList);
 router.get('/user', getAdminUserDetails);
 router.get('/dependent', getAdminDependentDetails);
-router.put('/dependent-edit', updateAdminDependent);
+router.put('/dependent-edit', uploadProfileImage, updateAdminDependent);
 router.delete('/dependent-delete', deleteAdminDependent);
 router.put('/user-edit', updateAdminUser);
 router.delete('/user-delete', deleteAdminUser);
