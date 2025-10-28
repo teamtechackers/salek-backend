@@ -381,7 +381,7 @@ export const getAdminUserDetails = async (req, res) => {
         },
         dependents: dependents.map(dep => ({
           id: dep.id,
-          user_id: dep.user_id,
+          dependent_id: dep.id,
           full_name: dep.full_name,
           dob: dep.dob,
           gender: dep.gender,
