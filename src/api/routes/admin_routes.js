@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { requireSuperAdmin } from '../../middleware/admin_middleware.js';
-import { getDashboardStats, getAdminUsersList, getAdminUserDetails, getAdminAllVaccines, addAdminVaccine, updateAdminVaccine, deleteAdminVaccine, updateAdminUser, deleteAdminUser, getAdminDependentDetails } from '../controllers/admin_controller.js';
+import { getDashboardStats, getAdminUsersList, getAdminUserDetails, getAdminAllVaccines, addAdminVaccine, updateAdminVaccine, deleteAdminVaccine, updateAdminUser, deleteAdminUser, getAdminDependentDetails, updateAdminDependent, deleteAdminDependent } from '../controllers/admin_controller.js';
 import { adminLogin } from '../controllers/admin_auth_controller.js';
 
 const router = express.Router();
@@ -15,6 +15,8 @@ router.get('/dashboard', getDashboardStats);
 router.get('/users', getAdminUsersList);
 router.get('/user', getAdminUserDetails);
 router.get('/dependent', getAdminDependentDetails);
+router.put('/dependent-edit', updateAdminDependent);
+router.delete('/dependent-delete', deleteAdminDependent);
 router.put('/user-edit', updateAdminUser);
 router.delete('/user-delete', deleteAdminUser);
 router.get('/vaccines', getAdminAllVaccines);
