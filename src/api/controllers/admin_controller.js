@@ -3,8 +3,7 @@ import logger from '../../config/logger.js';
 import { decryptUserId } from '../../services/encryption_service.js';
 import { encryptUserId } from '../../services/encryption_service.js';
 import { getUserVaccinesGroupedByType } from '../../services/user_vaccines_service.js';
-import { getDependentsByUserId } from '../../services/dependents_service.js';
-import { getDependentById } from '../../services/dependents_service.js';
+import { getDependentsByUserId, getDependentById, updateDependentProfile, deleteDependent } from '../../services/dependents_service.js';
 import { BASE_URL } from '../../config/constants.js';
 
 export const getDashboardStats = async (req, res) => {
@@ -1382,6 +1381,177 @@ export const addAdminVaccine = async (req, res) => {
 
   } catch (error) {
     logger.error('addAdminVaccine error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Admin: Update dependent profile
+export const updateAdminDependent = async (req, res) => {
+  try {
+    const { admin_user_id, user_id, dependent_id } = req.query;
+    const updateData = { ...req.body };
+    
+    // Handle image upload from multer
+    if (req.file) {
+      updateData.image = req.file.path;
+    } else if (req.body.image) {
+      // Keep existing image if provided in body
+      updateData.image = req.body.image;
+    }
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id query parameter is required' });
+    }
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: 'user_id query parameter is required' });
+    }
+    if (!dependent_id) {
+      return res.status(400).json({ success: false, message: 'dependent_id query parameter is required' });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    const actualUserId = parseInt(user_id, 10);
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id, 10);
+    }
+
+    if (!actualUserId || isNaN(actualUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user_id format' });
+    }
+    if (!actualDependentId) {
+      return res.status(400).json({ success: false, message: 'Invalid dependent_id format' });
+    }
+
+    // Get dependent and validate ownership
+    const depResult = await getDependentById(actualDependentId);
+    if (!depResult.success) {
+      return res.status(404).json({ success: false, message: 'Dependent not found' });
+    }
+    const dep = depResult.dependent;
+    if (dep.user_id !== actualUserId) {
+      return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
+    }
+
+    // Remove dob from updateData if present (don't allow DOB changes and vaccine regeneration)
+    const { dob, ...updateDataWithoutDOB } = updateData;
+    
+    // Update dependent profile
+    const updateResult = await updateDependentProfile(actualDependentId, updateDataWithoutDOB);
+    if (!updateResult.success) {
+      return res.status(400).json({ success: false, message: updateResult.message });
+    }
+
+    logger.info(`Admin updated dependent: ${actualDependentId} for user: ${actualUserId} (DOB change ignored)`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent updated successfully',
+      data: {
+        user_id: actualUserId,
+        dependent_id: actualDependentId,
+        updated_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('updateAdminDependent error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Admin: Delete dependent
+export const deleteAdminDependent = async (req, res) => {
+  try {
+    const { admin_user_id, user_id, dependent_id } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id query parameter is required' });
+    }
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: 'user_id query parameter is required' });
+    }
+    if (!dependent_id) {
+      return res.status(400).json({ success: false, message: 'dependent_id query parameter is required' });
+    }
+
+    // Decrypt admin user ID to verify it matches the logged-in admin
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    const actualUserId = parseInt(user_id, 10);
+    let actualDependentId;
+    if (isNaN(dependent_id)) {
+      actualDependentId = decryptUserId(dependent_id);
+    } else {
+      actualDependentId = parseInt(dependent_id, 10);
+    }
+
+    if (!actualUserId || isNaN(actualUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user_id format' });
+    }
+    if (!actualDependentId) {
+      return res.status(400).json({ success: false, message: 'Invalid dependent_id format' });
+    }
+
+    // Get dependent and validate ownership
+    const depResult = await getDependentById(actualDependentId);
+    if (!depResult.success) {
+      return res.status(404).json({ success: false, message: 'Dependent not found' });
+    }
+    const dep = depResult.dependent;
+    if (dep.user_id !== actualUserId) {
+      return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
+    }
+
+    // Delete dependent
+    const deleteResult = await deleteDependent(actualDependentId);
+    if (!deleteResult.success) {
+      return res.status(400).json({ success: false, message: deleteResult.message });
+    }
+
+    logger.info(`Admin deleted dependent: ${actualDependentId} for user: ${actualUserId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent deleted successfully',
+      data: {
+        user_id: actualUserId,
+        dependent_id: actualDependentId,
+        deleted_at: new Date().toISOString(),
+        status: 'soft_deleted'
+      }
+    });
+
+  } catch (error) {
+    logger.error('deleteAdminDependent error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
