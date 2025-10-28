@@ -80,6 +80,7 @@ export const getDependentsByUserId = async (userId) => {
   try {
     const sql = `
       SELECT 
+        d.dependent_id as id,
         d.*,
         r.relation_type
       FROM ${DEPENDENTS_TABLE} d
@@ -110,6 +111,7 @@ export const getDependentById = async (dependentId) => {
   try {
     const sql = `
       SELECT 
+        d.dependent_id as id,
         d.*,
         r.relation_type
       FROM ${DEPENDENTS_TABLE} d

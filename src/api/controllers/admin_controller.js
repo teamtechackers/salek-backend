@@ -380,7 +380,6 @@ export const getAdminUserDetails = async (req, res) => {
           updated_at: user.updated_at
         },
         dependents: dependents.map(dep => ({
-          id: dep.id,
           dependent_id: dep.id,
           full_name: dep.full_name,
           dob: dep.dob,
