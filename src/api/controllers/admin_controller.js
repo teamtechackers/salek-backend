@@ -815,22 +815,7 @@ export const deleteAdminVaccine = async (req, res) => {
 
 export const updateAdminUser = async (req, res) => {
   try {
-    const {
-      admin_user_id,
-      user_id,
-      full_name,
-      phone_number,
-      dob,
-      gender,
-      country,
-      address,
-      contact_no,
-      material_status,
-      do_you_have_children,
-      how_many_children,
-      are_you_pregnant,
-      pregnancy_detail
-    } = req.body;
+    const { admin_user_id, user_id, dob, ...updateData } = req.body;
 
     if (!admin_user_id) {
       return res.status(400).json({
@@ -848,43 +833,71 @@ export const updateAdminUser = async (req, res) => {
 
     // Decrypt admin user ID to verify it matches the logged-in admin
     let adminUserId;
-    if (isNaN(admin_user_id)) {
-      adminUserId = decryptUserId(admin_user_id);
-    } else {
-      adminUserId = parseInt(admin_user_id, 10);
+    try {
+      if (isNaN(admin_user_id)) {
+        adminUserId = decryptUserId(admin_user_id);
+      } else {
+        adminUserId = parseInt(admin_user_id, 10);
+      }
+    } catch (decryptError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid admin_user_id format - cannot decrypt or parse',
+        error: decryptError.message
+      });
     }
 
     // Verify admin user ID matches the authenticated user
     if (!adminUserId || adminUserId !== req.user.userId) {
       return res.status(403).json({
         success: false,
-        message: 'Admin user ID mismatch'
+        message: 'Admin user ID mismatch - you do not have permission to perform this action',
+        error: 'Authentication failed'
       });
     }
 
     // Get target user ID
     let targetUserId;
-    if (isNaN(user_id)) {
-      targetUserId = decryptUserId(user_id);
-    } else {
-      targetUserId = parseInt(user_id, 10);
-    }
-
-    if (!targetUserId) {
+    try {
+      if (isNaN(user_id)) {
+        targetUserId = decryptUserId(user_id);
+      } else {
+        targetUserId = parseInt(user_id, 10);
+      }
+    } catch (decryptError) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid user_id format'
+        message: 'Invalid user_id format - cannot decrypt or parse',
+        error: decryptError.message
+      });
+    }
+
+    if (!targetUserId || isNaN(targetUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format - must be a valid number or encrypted ID',
+        error: 'Invalid user_id'
       });
     }
 
     // Check if user exists
     const checkSql = `SELECT id FROM users WHERE id = ? AND is_active = true`;
-    const [existingUser] = await query(checkSql, [targetUserId]);
+    let existingUser;
+    try {
+      [existingUser] = await query(checkSql, [targetUserId]);
+    } catch (dbError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while checking user existence',
+        error: dbError.message
+      });
+    }
 
     if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: `User not found with ID: ${targetUserId} - user may be deleted or inactive`,
+        error: 'User not found'
       });
     }
 
@@ -892,60 +905,34 @@ export const updateAdminUser = async (req, res) => {
     const updateFields = [];
     const updateValues = [];
 
-    if (full_name !== undefined) {
-      updateFields.push('full_name = ?');
-      updateValues.push(full_name);
-    }
-    if (phone_number !== undefined) {
-      updateFields.push('phone_number = ?');
-      updateValues.push(phone_number);
-    }
-    // DOB field is intentionally ignored - not allowed to be updated
-    // if (dob !== undefined) {
-    //   updateFields.push('dob = ?');
-    //   updateValues.push(dob);
-    // }
-    if (gender !== undefined) {
-      updateFields.push('gender = ?');
-      updateValues.push(gender);
-    }
-    if (country !== undefined) {
-      updateFields.push('country = ?');
-      updateValues.push(country);
-    }
-    if (address !== undefined) {
-      updateFields.push('address = ?');
-      updateValues.push(address);
-    }
-    if (contact_no !== undefined) {
-      updateFields.push('contact_no = ?');
-      updateValues.push(contact_no);
-    }
-    if (material_status !== undefined) {
-      updateFields.push('material_status = ?');
-      updateValues.push(material_status);
-    }
-    if (do_you_have_children !== undefined) {
-      updateFields.push('do_you_have_children = ?');
-      updateValues.push(do_you_have_children ? 1 : 0);
-    }
-    if (how_many_children !== undefined) {
-      updateFields.push('how_many_children = ?');
-      updateValues.push(how_many_children);
-    }
-    if (are_you_pregnant !== undefined) {
-      updateFields.push('are_you_pregnant = ?');
-      updateValues.push(are_you_pregnant ? 1 : 0);
-    }
-    if (pregnancy_detail !== undefined) {
-      updateFields.push('pregnancy_detail = ?');
-      updateValues.push(pregnancy_detail);
-    }
+    // DOB is intentionally ignored - not allowed to be updated
+    delete updateData.dob;
+
+    // Allowed user fields that can be updated (PATCH behavior - only provided fields)
+    const allowedFields = [
+      'full_name', 'phone_number', 'gender', 'country', 'address', 'contact_no',
+      'material_status', 'do_you_have_children', 'how_many_children',
+      'are_you_pregnant', 'pregnancy_detail', 'image'
+    ];
+
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key) && updateData[key] !== undefined) {
+        updateFields.push(`${key} = ?`);
+        // Convert boolean fields to integers
+        if (key === 'do_you_have_children' || key === 'are_you_pregnant') {
+          updateValues.push(updateData[key] ? 1 : 0);
+        } else {
+          updateValues.push(updateData[key]);
+        }
+      }
+    });
 
     if (updateFields.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'No fields to update'
+        message: 'No valid fields to update - please provide at least one updatable field',
+        error: 'No fields provided',
+        allowedFields: ['full_name', 'phone_number', 'gender', 'country', 'address', 'contact_no', 'material_status', 'do_you_have_children', 'how_many_children', 'are_you_pregnant', 'pregnancy_detail', 'image']
       });
     }
 
@@ -958,12 +945,22 @@ export const updateAdminUser = async (req, res) => {
       WHERE id = ?
     `;
 
-    const result = await query(updateSql, updateValues);
+    let result;
+    try {
+      result = await query(updateSql, updateValues);
+    } catch (dbError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while updating user',
+        error: dbError.message
+      });
+    }
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: 'User not found or no changes made'
+        message: 'User not found or no changes made - user may have been deleted',
+        error: 'Update failed'
       });
     }
 
@@ -984,8 +981,9 @@ export const updateAdminUser = async (req, res) => {
     logger.error('updateAdminUser error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error while updating user',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -1435,27 +1433,63 @@ export const updateAdminDependent = async (req, res) => {
     if (!actualUserId || isNaN(actualUserId)) {
       return res.status(400).json({ success: false, message: 'Invalid user_id format' });
     }
-    if (!actualDependentId) {
-      return res.status(400).json({ success: false, message: 'Invalid dependent_id format' });
+    if (!actualDependentId || isNaN(actualDependentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid dependent_id format - must be a valid number or encrypted ID',
+        error: 'Invalid dependent_id'
+      });
     }
 
     // Get dependent and validate ownership
-    const depResult = await getDependentById(actualDependentId);
+    let depResult;
+    try {
+      depResult = await getDependentById(actualDependentId);
+    } catch (dbError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while fetching dependent',
+        error: dbError.message
+      });
+    }
+
     if (!depResult.success) {
-      return res.status(404).json({ success: false, message: 'Dependent not found' });
+      return res.status(404).json({
+        success: false,
+        message: `Dependent not found with ID: ${actualDependentId} - dependent may be deleted or inactive`,
+        error: 'Dependent not found'
+      });
     }
     const dep = depResult.dependent;
     if (dep.user_id !== actualUserId) {
-      return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
+      return res.status(403).json({
+        success: false,
+        message: `Dependent does not belong to user ${actualUserId} - access denied`,
+        error: 'Ownership mismatch'
+      });
     }
 
     // Remove dob from updateData if present (don't allow DOB changes and vaccine regeneration)
     const { dob, ...updateDataWithoutDOB } = updateData;
     
     // Update dependent profile
-    const updateResult = await updateDependentProfile(actualDependentId, updateDataWithoutDOB);
+    let updateResult;
+    try {
+      updateResult = await updateDependentProfile(actualDependentId, updateDataWithoutDOB);
+    } catch (updateError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while updating dependent profile',
+        error: updateError.message
+      });
+    }
+
     if (!updateResult.success) {
-      return res.status(400).json({ success: false, message: updateResult.message });
+      return res.status(400).json({
+        success: false,
+        message: updateResult.message || 'Failed to update dependent profile',
+        error: updateResult.error || 'Update failed'
+      });
     }
 
     logger.info(`Admin updated dependent: ${actualDependentId} for user: ${actualUserId} (DOB change ignored)`);
@@ -1474,8 +1508,9 @@ export const updateAdminDependent = async (req, res) => {
     logger.error('updateAdminDependent error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error while updating dependent',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
