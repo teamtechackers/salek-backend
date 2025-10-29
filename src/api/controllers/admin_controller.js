@@ -815,22 +815,7 @@ export const deleteAdminVaccine = async (req, res) => {
 
 export const updateAdminUser = async (req, res) => {
   try {
-    const {
-      admin_user_id,
-      user_id,
-      full_name,
-      phone_number,
-      dob,
-      gender,
-      country,
-      address,
-      contact_no,
-      material_status,
-      do_you_have_children,
-      how_many_children,
-      are_you_pregnant,
-      pregnancy_detail
-    } = req.body;
+    const { admin_user_id, user_id, dob, ...updateData } = req.body;
 
     if (!admin_user_id) {
       return res.status(400).json({
@@ -892,55 +877,27 @@ export const updateAdminUser = async (req, res) => {
     const updateFields = [];
     const updateValues = [];
 
-    if (full_name !== undefined) {
-      updateFields.push('full_name = ?');
-      updateValues.push(full_name);
-    }
-    if (phone_number !== undefined) {
-      updateFields.push('phone_number = ?');
-      updateValues.push(phone_number);
-    }
-    // DOB field is intentionally ignored - not allowed to be updated
-    // if (dob !== undefined) {
-    //   updateFields.push('dob = ?');
-    //   updateValues.push(dob);
-    // }
-    if (gender !== undefined) {
-      updateFields.push('gender = ?');
-      updateValues.push(gender);
-    }
-    if (country !== undefined) {
-      updateFields.push('country = ?');
-      updateValues.push(country);
-    }
-    if (address !== undefined) {
-      updateFields.push('address = ?');
-      updateValues.push(address);
-    }
-    if (contact_no !== undefined) {
-      updateFields.push('contact_no = ?');
-      updateValues.push(contact_no);
-    }
-    if (material_status !== undefined) {
-      updateFields.push('material_status = ?');
-      updateValues.push(material_status);
-    }
-    if (do_you_have_children !== undefined) {
-      updateFields.push('do_you_have_children = ?');
-      updateValues.push(do_you_have_children ? 1 : 0);
-    }
-    if (how_many_children !== undefined) {
-      updateFields.push('how_many_children = ?');
-      updateValues.push(how_many_children);
-    }
-    if (are_you_pregnant !== undefined) {
-      updateFields.push('are_you_pregnant = ?');
-      updateValues.push(are_you_pregnant ? 1 : 0);
-    }
-    if (pregnancy_detail !== undefined) {
-      updateFields.push('pregnancy_detail = ?');
-      updateValues.push(pregnancy_detail);
-    }
+    // DOB is intentionally ignored - not allowed to be updated
+    delete updateData.dob;
+
+    // Allowed user fields that can be updated (PATCH behavior - only provided fields)
+    const allowedFields = [
+      'full_name', 'phone_number', 'gender', 'country', 'address', 'contact_no',
+      'material_status', 'do_you_have_children', 'how_many_children',
+      'are_you_pregnant', 'pregnancy_detail', 'image'
+    ];
+
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key) && updateData[key] !== undefined) {
+        updateFields.push(`${key} = ?`);
+        // Convert boolean fields to integers
+        if (key === 'do_you_have_children' || key === 'are_you_pregnant') {
+          updateValues.push(updateData[key] ? 1 : 0);
+        } else {
+          updateValues.push(updateData[key]);
+        }
+      }
+    });
 
     if (updateFields.length === 0) {
       return res.status(400).json({
