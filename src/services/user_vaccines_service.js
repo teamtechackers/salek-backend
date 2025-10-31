@@ -434,35 +434,36 @@ export const updateAllVaccineStatuses = async (userId, dependentId = null) => {
       params = [userId];
     }
     
-    // Update overdue vaccines (more than 30 days past due)
+    // Update overdue vaccines (past due date)
     const overdueSql = `
       UPDATE ${USER_VACCINES_TABLE} 
       SET ${USER_VACCINES_FIELDS.STATUS} = 'overdue'
       WHERE ${whereClause} 
-      AND ${USER_VACCINES_FIELDS.STATUS} = 'pending'
-      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} < DATE_SUB(?, INTERVAL 30 DAY)
+      AND ${USER_VACCINES_FIELDS.STATUS} NOT IN ('completed', 'missed')
+      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} < ?
     `;
     await query(overdueSql, [...params, todayStr]);
     
-    // Update due soon vaccines (within 7 days)
+    // Update due soon vaccines (within 30 days from today, not past)
     const dueSoonSql = `
       UPDATE ${USER_VACCINES_TABLE} 
       SET ${USER_VACCINES_FIELDS.STATUS} = 'due_soon'
       WHERE ${whereClause} 
-      AND ${USER_VACCINES_FIELDS.STATUS} = 'pending'
-      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND ?
+      AND ${USER_VACCINES_FIELDS.STATUS} NOT IN ('completed', 'missed', 'overdue')
+      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} >= ?
+      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} <= DATE_ADD(?, INTERVAL 30 DAY)
     `;
     await query(dueSoonSql, [...params, todayStr, todayStr]);
     
-    // Update upcoming vaccines (within 30 days)
+    // Update upcoming vaccines (more than 30 days away)
     const upcomingSql = `
       UPDATE ${USER_VACCINES_TABLE} 
       SET ${USER_VACCINES_FIELDS.STATUS} = 'upcoming'
       WHERE ${whereClause} 
-      AND ${USER_VACCINES_FIELDS.STATUS} = 'pending'
-      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} BETWEEN ? AND DATE_ADD(?, INTERVAL 30 DAY)
+      AND ${USER_VACCINES_FIELDS.STATUS} NOT IN ('completed', 'missed', 'overdue', 'due_soon')
+      AND ${USER_VACCINES_FIELDS.SCHEDULED_DATE} > DATE_ADD(?, INTERVAL 30 DAY)
     `;
-    await query(upcomingSql, [...params, todayStr, todayStr]);
+    await query(upcomingSql, [...params, todayStr]);
     
     logger.info(`Updated vaccine statuses for ${dependentId ? 'dependent' : 'user'} ${dependentId || userId}`);
     return { success: true };
