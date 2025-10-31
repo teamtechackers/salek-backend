@@ -7,6 +7,9 @@ export const NOTIFICATION_PERMISSIONS_SCHEMA = `
     notification BOOLEAN DEFAULT FALSE,
     calendar BOOLEAN DEFAULT FALSE,
     email BOOLEAN DEFAULT FALSE,
+    upcoming_vaccine BOOLEAN DEFAULT FALSE,
+    missing_due_alert BOOLEAN DEFAULT FALSE,
+    complete_vaccine BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -20,6 +23,9 @@ export const NOTIFICATION_PERMISSIONS_FIELDS = {
   NOTIFICATION: 'notification',
   CALENDAR: 'calendar',
   EMAIL: 'email',
+  UPCOMING_VACCINE: 'upcoming_vaccine',
+  MISSING_DUE_ALERT: 'missing_due_alert',
+  COMPLETE_VACCINE: 'complete_vaccine',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at'
 };

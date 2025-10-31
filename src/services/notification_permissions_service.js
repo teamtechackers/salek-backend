@@ -60,7 +60,7 @@ export const getNotificationPermissions = async (userId) => {
   }
 };
 
-export const updateNotificationPermissions = async (userId, notification, calendar, email) => {
+export const updateNotificationPermissions = async (userId, permissionsData) => {
   try {
     // Check if permissions exist
     const existingPermissions = await getNotificationPermissions(userId);
@@ -72,17 +72,52 @@ export const updateNotificationPermissions = async (userId, notification, calend
       };
     }
     
+    // Build dynamic update query based on provided fields
+    const updateFields = [];
+    const params = [];
+    
+    if (permissionsData.notification !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.NOTIFICATION} = ?`);
+      params.push(permissionsData.notification);
+    }
+    if (permissionsData.calendar !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.CALENDAR} = ?`);
+      params.push(permissionsData.calendar);
+    }
+    if (permissionsData.email !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.EMAIL} = ?`);
+      params.push(permissionsData.email);
+    }
+    if (permissionsData.upcoming_vaccine !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.UPCOMING_VACCINE} = ?`);
+      params.push(permissionsData.upcoming_vaccine);
+    }
+    if (permissionsData.missing_due_alert !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.MISSING_DUE_ALERT} = ?`);
+      params.push(permissionsData.missing_due_alert);
+    }
+    if (permissionsData.complete_vaccine !== undefined) {
+      updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.COMPLETE_VACCINE} = ?`);
+      params.push(permissionsData.complete_vaccine);
+    }
+    
+    if (updateFields.length === 0) {
+      return {
+        success: false,
+        error: 'No permission fields provided to update'
+      };
+    }
+    
+    updateFields.push(`${NOTIFICATION_PERMISSIONS_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP`);
+    params.push(userId);
+    
     const sql = `
       UPDATE ${NOTIFICATION_PERMISSIONS_TABLE}
-      SET 
-        ${NOTIFICATION_PERMISSIONS_FIELDS.NOTIFICATION} = ?,
-        ${NOTIFICATION_PERMISSIONS_FIELDS.CALENDAR} = ?,
-        ${NOTIFICATION_PERMISSIONS_FIELDS.EMAIL} = ?,
-        ${NOTIFICATION_PERMISSIONS_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
+      SET ${updateFields.join(', ')}
       WHERE ${NOTIFICATION_PERMISSIONS_FIELDS.USER_ID} = ?
     `;
     
-    const result = await query(sql, [notification, calendar, email, userId]);
+    const result = await query(sql, params);
     
     if (result.affectedRows === 0) {
       return {

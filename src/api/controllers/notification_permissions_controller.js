@@ -58,7 +58,10 @@ export const getNotificationPermissionsAPI = async (req, res) => {
         permissions: {
           notification: result.permissions.notification,
           calendar: result.permissions.calendar,
-          email: result.permissions.email
+          email: result.permissions.email,
+          upcoming_vaccine: result.permissions.upcoming_vaccine,
+          missing_due_alert: result.permissions.missing_due_alert,
+          complete_vaccine: result.permissions.complete_vaccine
         }
       }
     });
@@ -74,7 +77,7 @@ export const getNotificationPermissionsAPI = async (req, res) => {
 
 export const updateNotificationPermissionsAPI = async (req, res) => {
   try {
-    const { user_id, notification, calendar, email } = req.body;
+    const { user_id, notification, calendar, email, upcoming_vaccine, missing_due_alert, complete_vaccine } = req.body;
 
     if (!user_id) {
       return res.status(400).json({
@@ -105,17 +108,36 @@ export const updateNotificationPermissionsAPI = async (req, res) => {
       });
     }
 
-    // Validate boolean values
-    const notificationBool = notification === true || notification === 'true' || notification === 1;
-    const calendarBool = calendar === true || calendar === 'true' || calendar === 1;
-    const emailBool = email === true || email === 'true' || email === 1;
+    // Build permissions object - only include fields that are provided
+    const permissionsData = {};
+    
+    if (notification !== undefined) {
+      permissionsData.notification = notification === true || notification === 'true' || notification === 1;
+    }
+    if (calendar !== undefined) {
+      permissionsData.calendar = calendar === true || calendar === 'true' || calendar === 1;
+    }
+    if (email !== undefined) {
+      permissionsData.email = email === true || email === 'true' || email === 1;
+    }
+    if (upcoming_vaccine !== undefined) {
+      permissionsData.upcoming_vaccine = upcoming_vaccine === true || upcoming_vaccine === 'true' || upcoming_vaccine === 1;
+    }
+    if (missing_due_alert !== undefined) {
+      permissionsData.missing_due_alert = missing_due_alert === true || missing_due_alert === 'true' || missing_due_alert === 1;
+    }
+    if (complete_vaccine !== undefined) {
+      permissionsData.complete_vaccine = complete_vaccine === true || complete_vaccine === 'true' || complete_vaccine === 1;
+    }
 
-    const result = await updateNotificationPermissions(
-      actualUserId, 
-      notificationBool, 
-      calendarBool, 
-      emailBool
-    );
+    if (Object.keys(permissionsData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one permission field is required'
+      });
+    }
+
+    const result = await updateNotificationPermissions(actualUserId, permissionsData);
 
     if (!result.success) {
       return res.status(500).json({
@@ -134,7 +156,10 @@ export const updateNotificationPermissionsAPI = async (req, res) => {
         permissions: {
           notification: result.permissions.notification,
           calendar: result.permissions.calendar,
-          email: result.permissions.email
+          email: result.permissions.email,
+          upcoming_vaccine: result.permissions.upcoming_vaccine,
+          missing_due_alert: result.permissions.missing_due_alert,
+          complete_vaccine: result.permissions.complete_vaccine
         }
       }
     });
