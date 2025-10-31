@@ -311,6 +311,10 @@ export const getAdminUserDetails = async (req, res) => {
     const dependentsResult = await getDependentsByUserId(userId);
     const dependents = dependentsResult?.dependents || [];
 
+    // Update vaccine statuses before fetching to ensure accuracy
+    const { updateAllVaccineStatuses } = await import('../../services/user_vaccines_service.js');
+    await updateAllVaccineStatuses(userId);
+
     // Get user's vaccines grouped by status
     const yearsAhead = parseInt(years_ahead) || 2; // Default to 2 years if not provided
     const vaccinesData = await getUserVaccinesGroupedByType(userId, false, null, null, yearsAhead);
@@ -1267,6 +1271,10 @@ export const getAdminDependentDetails = async (req, res) => {
     if (dep.user_id !== actualUserId) {
       return res.status(403).json({ success: false, message: 'Dependent does not belong to this user' });
     }
+
+    // Update vaccine statuses before fetching to ensure accuracy
+    const { updateAllVaccineStatuses } = await import('../../services/user_vaccines_service.js');
+    await updateAllVaccineStatuses(actualUserId, actualDependentId);
 
     // Fetch vaccines grouped by type for this dependent
     const vaccinesData = await getUserVaccinesGroupedByType(actualUserId, false, null, actualDependentId);
