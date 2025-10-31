@@ -1393,6 +1393,37 @@ export const updateAdminDependent = async (req, res) => {
     const { admin_user_id, user_id, dependent_id } = req.query;
     const updateData = { ...req.body };
     
+    // Map relation_type to relation_id if provided
+    if (updateData.relation_type) {
+      try {
+        const { query } = await import('../../config/database.js');
+        const { RELATIONSHIPS_TABLE, RELATIONSHIPS_FIELDS } = await import('../../models/relationships_model.js');
+        const relRows = await query(
+          `SELECT ${RELATIONSHIPS_FIELDS.ID} AS id FROM ${RELATIONSHIPS_TABLE} WHERE ${RELATIONSHIPS_FIELDS.RELATION_TYPE} = ? AND ${RELATIONSHIPS_FIELDS.IS_ACTIVE} = true LIMIT 1`,
+          [updateData.relation_type]
+        );
+
+        if (!relRows || relRows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid relation_type provided',
+            error: 'Unknown relation_type'
+          });
+        }
+
+        updateData.relation_id = relRows[0].id;
+      } catch (relErr) {
+        return res.status(500).json({
+          success: false,
+          message: 'Database error while resolving relation_type',
+          error: relErr.message
+        });
+      } finally {
+        // Ensure relation_type is not forwarded to SQL updater
+        delete updateData.relation_type;
+      }
+    }
+
     // Handle image upload from multer
     if (req.file) {
       updateData.image = req.file.path;
