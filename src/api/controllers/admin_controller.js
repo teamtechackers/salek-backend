@@ -813,6 +813,124 @@ export const deleteAdminVaccine = async (req, res) => {
   }
 };
 
+// Admin: Delete one user-assigned vaccine (user case: dependent_id IS NULL)
+export const deleteAdminUserVaccine = async (req, res) => {
+  try {
+    const { admin_user_id, user_vaccine_id } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id is required' });
+    }
+    if (!user_vaccine_id) {
+      return res.status(400).json({ success: false, message: 'user_vaccine_id is required' });
+    }
+
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    const checkSql = `
+      SELECT user_vaccine_id, user_id, dependent_id, is_active
+      FROM user_vaccines
+      WHERE user_vaccine_id = ?
+    `;
+    const [row] = await query(checkSql, [parseInt(user_vaccine_id)]);
+    if (!row) {
+      return res.status(404).json({ success: false, message: 'User vaccine not found' });
+    }
+    if (row.dependent_id !== null) {
+      return res.status(400).json({ success: false, message: 'This vaccine belongs to a dependent. Use dependent delete endpoint.' });
+    }
+
+    const delSql = `
+      UPDATE user_vaccines
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE user_vaccine_id = ?
+    `;
+    await query(delSql, [parseInt(user_vaccine_id)]);
+
+    logger.info(`Admin deleted user vaccine assignment: user_vaccine_id ${user_vaccine_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User vaccine deleted successfully',
+      data: {
+        user_vaccine_id: parseInt(user_vaccine_id),
+        deleted_at: new Date().toISOString(),
+        scope: 'user'
+      }
+    });
+  } catch (error) {
+    logger.error('deleteAdminUserVaccine error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+};
+
+// Admin: Delete one dependent-assigned vaccine (dependent case: dependent_id NOT NULL)
+export const deleteAdminDependentUserVaccine = async (req, res) => {
+  try {
+    const { admin_user_id, user_vaccine_id } = req.body;
+
+    if (!admin_user_id) {
+      return res.status(400).json({ success: false, message: 'admin_user_id is required' });
+    }
+    if (!user_vaccine_id) {
+      return res.status(400).json({ success: false, message: 'user_vaccine_id is required' });
+    }
+
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Admin user ID mismatch' });
+    }
+
+    const checkSql = `
+      SELECT user_vaccine_id, user_id, dependent_id, is_active
+      FROM user_vaccines
+      WHERE user_vaccine_id = ?
+    `;
+    const [row] = await query(checkSql, [parseInt(user_vaccine_id)]);
+    if (!row) {
+      return res.status(404).json({ success: false, message: 'User vaccine not found' });
+    }
+    if (row.dependent_id === null) {
+      return res.status(400).json({ success: false, message: 'This vaccine belongs to a user. Use user delete endpoint.' });
+    }
+
+    const delSql = `
+      UPDATE user_vaccines
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE user_vaccine_id = ?
+    `;
+    await query(delSql, [parseInt(user_vaccine_id)]);
+
+    logger.info(`Admin deleted dependent vaccine assignment: user_vaccine_id ${user_vaccine_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dependent vaccine deleted successfully',
+      data: {
+        user_vaccine_id: parseInt(user_vaccine_id),
+        deleted_at: new Date().toISOString(),
+        scope: 'dependent'
+      }
+    });
+  } catch (error) {
+    logger.error('deleteAdminDependentUserVaccine error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+};
+
 export const updateAdminUser = async (req, res) => {
   try {
     const { admin_user_id, user_id, dob, ...updateData } = req.body;
