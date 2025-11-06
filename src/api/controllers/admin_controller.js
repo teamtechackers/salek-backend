@@ -292,7 +292,7 @@ export const getAdminUserDetails = async (req, res) => {
     const userSql = `
       SELECT id, phone_number, full_name, dob, gender, country, address, 
              contact_no, material_status, do_you_have_children, how_many_children,
-             are_you_pregnant, pregnancy_detail, profile_completed, created_at, updated_at
+             are_you_pregnant, pregnancy_detail, profile_completed, image, created_at, updated_at
       FROM users 
       WHERE id = ? AND is_active = 1
     `;
@@ -306,6 +306,8 @@ export const getAdminUserDetails = async (req, res) => {
     }
 
     const user = userRows[0];
+    // Normalize image to full URL if present
+    const userImage = user.image ? `${BASE_URL}${user.image}` : null;
 
     // Get user's dependents
     const dependentsResult = await getDependentsByUserId(userId);
@@ -378,6 +380,7 @@ export const getAdminUserDetails = async (req, res) => {
           how_many_children: user.how_many_children,
           are_you_pregnant: user.are_you_pregnant,
           pregnancy_detail: user.pregnancy_detail,
+          image: userImage,
           profile_completed: !!user.profile_completed,
           created_at: user.created_at,
           updated_at: user.updated_at
@@ -1320,6 +1323,7 @@ export const getAdminDependentDetails = async (req, res) => {
           how_many_children: dep.how_many_children,
           are_you_pregnant: dep.are_you_pregnant,
           pregnancy_detail: dep.pregnancy_detail,
+          image: dep.image ? `${BASE_URL}${dep.image}` : null,
           profile_completed: !!dep.profile_completed,
           created_at: dep.created_at,
           updated_at: dep.updated_at
