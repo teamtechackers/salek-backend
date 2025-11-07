@@ -391,6 +391,7 @@ export const getAdminUserDetails = async (req, res) => {
           dob: dep.dob,
           gender: dep.gender,
           relation_type: dep.relation_type,
+          image: dep.image ? `${BASE_URL}${dep.image}` : null,
           created_at: dep.created_at
         })),
         vaccines
