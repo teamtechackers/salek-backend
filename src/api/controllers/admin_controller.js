@@ -84,14 +84,14 @@ export const getAdminUsersList = async (req, res) => {
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = pageNum * pageSize;
 
-    let where = 'WHERE 1 = 1';
+    let where = 'WHERE u.is_active = 1';
     const params = [];
     if (search) {
       where += ' AND (phone_number LIKE ? OR full_name LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    const countSql = `SELECT COUNT(*) AS total FROM users ${where}`;
+    const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
     const [countRow] = await query(countSql, params);
     const total = countRow?.total || 0;
 
@@ -212,7 +212,7 @@ export const getAdminUsersList = async (req, res) => {
       created_at: u.created_at,
       updated_at: u.updated_at,
       is_active: !!u.is_active,
-      status: u.is_active ? 'active' : 'inactive'
+      status: 'active'
     }));
 
     return res.status(200).json({
@@ -307,6 +307,12 @@ export const getAdminUserDetails = async (req, res) => {
     }
 
     const user = userRows[0];
+    if (!user.is_active) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
     // Normalize image to full URL if present
     const userImage = user.image ? `${BASE_URL}${user.image}` : null;
 
@@ -383,8 +389,6 @@ export const getAdminUserDetails = async (req, res) => {
           pregnancy_detail: user.pregnancy_detail,
           image: userImage,
           profile_completed: !!user.profile_completed,
-          is_active: !!user.is_active,
-          status: user.is_active ? 'active' : 'inactive',
           created_at: user.created_at,
           updated_at: user.updated_at
         },
