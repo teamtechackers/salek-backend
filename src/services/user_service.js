@@ -29,7 +29,7 @@ export const createUser = async (phoneNumber) => {
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
       // Check by phone number
-      const existingUser = await getUserByPhoneNumber(phoneNumber);
+      const existingUser = await getUserByPhoneNumber(phoneNumber, true);
       if (existingUser.success) {
         return {
           success: true,
@@ -48,11 +48,11 @@ export const createUser = async (phoneNumber) => {
 };
 
 
-export const getUserByPhoneNumber = async (phoneNumber) => {
+export const getUserByPhoneNumber = async (phoneNumber, includeInactive = false) => {
   try {
     const sql = `
       SELECT * FROM ${USER_TABLE} 
-      WHERE ${USER_FIELDS.PHONE_NUMBER} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
+      WHERE ${USER_FIELDS.PHONE_NUMBER} = ?${includeInactive ? '' : ` AND ${USER_FIELDS.IS_ACTIVE} = true`}
     `;
     const result = await query(sql, [phoneNumber]);
     
@@ -75,11 +75,11 @@ export const getUserByPhoneNumber = async (phoneNumber) => {
   }
 };
 
-export const getUserById = async (userId) => {
+export const getUserById = async (userId, includeInactive = false) => {
   try {
     const sql = `
       SELECT * FROM ${USER_TABLE} 
-      WHERE ${USER_FIELDS.ID} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
+      WHERE ${USER_FIELDS.ID} = ?${includeInactive ? '' : ` AND ${USER_FIELDS.IS_ACTIVE} = true`}
     `;
     const result = await query(sql, [userId]);
     
@@ -106,7 +106,8 @@ export const updateUserLastLogin = async (userId) => {
   try {
     const sql = `
       UPDATE ${USER_TABLE} 
-      SET ${USER_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP 
+      SET ${USER_FIELDS.IS_ACTIVE} = TRUE,
+          ${USER_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP 
       WHERE ${USER_FIELDS.ID} = ?
     `;
     await query(sql, [userId]);
