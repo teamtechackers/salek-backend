@@ -487,7 +487,7 @@ export const getAdminAllVaccines = async (req, res) => {
         updated_at
       FROM vaccines 
       ${whereClause}
-      ORDER BY type ASC, category ASC, name ASC
+      ORDER BY created_at DESC, type ASC, category ASC, name ASC
       LIMIT ${offset}, ${pageSize}
     `;
     
