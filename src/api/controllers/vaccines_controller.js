@@ -115,6 +115,14 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
       });
     }
 
+    // Always refresh vaccine statuses before any fetch to ensure consistency across admin/app
+    try {
+      const { updateAllVaccineStatuses } = await import('../../services/user_vaccines_service.js');
+      await updateAllVaccineStatuses(actualUserId);
+    } catch (statusError) {
+      logger.warn(`Failed to refresh vaccine statuses for user ${actualUserId}:`, statusError.message);
+    }
+
     // If a specific status is requested, keep legacy behavior to filter by status
     if (status) {
       const validStatuses = Object.values(VACCINE_STATUS);
