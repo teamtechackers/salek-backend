@@ -4,6 +4,17 @@ import { USER_VACCINES_TABLE, USER_VACCINES_FIELDS } from '../models/user_vaccin
 import { VACCINES_TABLE, VACCINES_FIELDS } from '../models/vaccines_model.js';
 import logger from '../config/logger.js';
 
+const normalizeReminderTime = (value) => {
+  if (!value) {
+    return '09:00:00';
+  }
+  // Accept both HH:mm and HH:mm:ss formats
+  if (value.length === 5) {
+    return `${value}:00`;
+  }
+  return value;
+};
+
 export const addVaccineReminder = async (userVaccineId, reminderData) => {
   try {
     const { title, message, date, time, frequency } = reminderData;
@@ -16,12 +27,14 @@ export const addVaccineReminder = async (userVaccineId, reminderData) => {
       AND ${VACCINE_REMINDERS_FIELDS.REMINDER_TIME} = ?
       AND ${VACCINE_REMINDERS_FIELDS.IS_ACTIVE} = true
       AND ${VACCINE_REMINDERS_FIELDS.STATUS} = 'active'
+      AND ${VACCINE_REMINDERS_FIELDS.USER_VACCINE_ID} = ?
     `;
     
-    const normalizedTime = time || '09:00:00';
+    const normalizedTime = normalizeReminderTime(time);
     const existingReminders = await query(checkDuplicateSql, [
       date,
-      normalizedTime
+      normalizedTime,
+      userVaccineId
     ]);
     
     if (existingReminders.length > 0) {
@@ -180,13 +193,15 @@ export const updateVaccineReminder = async (reminderId, reminderData) => {
       AND ${VACCINE_REMINDERS_FIELDS.REMINDER_TIME} = ?
       AND ${VACCINE_REMINDERS_FIELDS.IS_ACTIVE} = true
       AND ${VACCINE_REMINDERS_FIELDS.STATUS} = 'active'
+      AND ${VACCINE_REMINDERS_FIELDS.USER_VACCINE_ID} = ?
       AND ${VACCINE_REMINDERS_FIELDS.REMINDER_ID} != ?
     `;
     
-    const normalizedTime = time || '09:00:00';
+    const normalizedTime = normalizeReminderTime(time);
     const existingReminders = await query(checkDuplicateSql, [
       date,
       normalizedTime,
+      userVaccineId,
       reminderId
     ]);
     

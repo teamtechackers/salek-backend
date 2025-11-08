@@ -28,7 +28,7 @@ export const logout = async (req, res) => {
       });
     }
 
-    const userExists = await getUserById(actualUserId);
+    const userExists = await getUserById(actualUserId, true);
     if (!userExists.success) {
       return res.status(404).json({
         success: false,

@@ -84,7 +84,7 @@ export const getAdminUsersList = async (req, res) => {
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = pageNum * pageSize;
 
-    let where = 'WHERE is_active = 1';
+    let where = 'WHERE 1 = 1';
     const params = [];
     if (search) {
       where += ' AND (phone_number LIKE ? OR full_name LIKE ?)';
@@ -211,7 +211,8 @@ export const getAdminUsersList = async (req, res) => {
       profile_completed: !!u.profile_completed,
       created_at: u.created_at,
       updated_at: u.updated_at,
-      is_active: !!u.is_active
+      is_active: !!u.is_active,
+      status: u.is_active ? 'active' : 'inactive'
     }));
 
     return res.status(200).json({
@@ -292,9 +293,9 @@ export const getAdminUserDetails = async (req, res) => {
     const userSql = `
       SELECT id, phone_number, full_name, dob, gender, country, address, 
              contact_no, material_status, do_you_have_children, how_many_children,
-             are_you_pregnant, pregnancy_detail, profile_completed, image, created_at, updated_at
+             are_you_pregnant, pregnancy_detail, profile_completed, image, is_active, created_at, updated_at
       FROM users 
-      WHERE id = ? AND is_active = 1
+      WHERE id = ?
     `;
     const userRows = await query(userSql, [userId]);
     
@@ -382,6 +383,8 @@ export const getAdminUserDetails = async (req, res) => {
           pregnancy_detail: user.pregnancy_detail,
           image: userImage,
           profile_completed: !!user.profile_completed,
+          is_active: !!user.is_active,
+          status: user.is_active ? 'active' : 'inactive',
           created_at: user.created_at,
           updated_at: user.updated_at
         },

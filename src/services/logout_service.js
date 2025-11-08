@@ -6,7 +6,8 @@ export const logoutUser = async (userId) => {
     // Update last logout time
     const sql = `
       UPDATE users 
-      SET updated_at = CURRENT_TIMESTAMP 
+      SET is_active = FALSE,
+          updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `;
     await query(sql, [userId]);

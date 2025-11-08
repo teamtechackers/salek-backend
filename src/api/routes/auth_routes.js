@@ -72,7 +72,7 @@ const verifyOtpAndLogin = async (req, res) => {
     }
 
     // Check if user exists
-    let userResult = await getUserByPhoneNumber(phone);
+    let userResult = await getUserByPhoneNumber(phone, true);
     
     if (!userResult.success) {
       // Create new user with phone number
@@ -84,7 +84,7 @@ const verifyOtpAndLogin = async (req, res) => {
           message: 'Failed to create user: ' + createResult.error
         });
       }
-      userResult = await getUserByPhoneNumber(phone);
+      userResult = await getUserByPhoneNumber(phone, true);
     }
 
     const user = userResult.user;
