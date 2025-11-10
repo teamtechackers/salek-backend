@@ -18,6 +18,8 @@ import {
   getCountriesAPI,
   getCitiesAPI,
   getHospitalsAPI,
+  getVaccineCategoriesAPI,
+  getVaccineSubCategoriesAPI,
   addVaccineAPI,
   getDependentVaccinesAPI,
   addDependentVaccineRecordAPI,
@@ -52,6 +54,8 @@ router.get('/get-record-dependent', getRecordDependent);
 router.get('/countries', getCountriesAPI);
 router.get('/cities', getCitiesAPI);
 router.get('/hospitals', getHospitalsAPI);
+router.get('/categories', getVaccineCategoriesAPI);
+router.get('/sub-categories', getVaccineSubCategoriesAPI);
 
 // Dependent vaccine routes
 router.get('/get-dependent-vaccines', getDependentVaccinesAPI);

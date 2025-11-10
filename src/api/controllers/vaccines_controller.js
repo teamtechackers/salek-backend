@@ -22,6 +22,7 @@ import { query } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import { getAllCountries } from '../../services/countries_service.js';
 import { getAllCities, getCitiesByCountry } from '../../services/cities_service.js';
+import { VACCINES_TABLE, VACCINES_FIELDS } from '../../models/vaccines_model.js';
 
 export const getVaccinesList = async (req, res) => {
   try {
@@ -185,6 +186,72 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+};
+
+export const getVaccineCategoriesAPI = async (req, res) => {
+  try {
+    const sql = `
+      SELECT DISTINCT ${VACCINES_FIELDS.CATEGORY}
+      FROM ${VACCINES_TABLE}
+      WHERE ${VACCINES_FIELDS.IS_ACTIVE} = true
+      ORDER BY ${VACCINES_FIELDS.CATEGORY} ASC
+    `;
+
+    const rows = await query(sql);
+    const categories = rows.map(row => row[VACCINES_FIELDS.CATEGORY]).filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine categories fetched successfully',
+      data: {
+        categories
+      }
+    });
+  } catch (error) {
+    logger.error('getVaccineCategoriesAPI error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch vaccine categories'
+    });
+  }
+};
+
+export const getVaccineSubCategoriesAPI = async (req, res) => {
+  try {
+    const { category } = req.query;
+
+    let sql = `
+      SELECT DISTINCT ${VACCINES_FIELDS.SUB_CATEGORY}
+      FROM ${VACCINES_TABLE}
+      WHERE ${VACCINES_FIELDS.IS_ACTIVE} = true
+    `;
+    const params = [];
+
+    if (category) {
+      sql += ` AND ${VACCINES_FIELDS.CATEGORY} = ?`;
+      params.push(category);
+    }
+
+    sql += ` ORDER BY ${VACCINES_FIELDS.SUB_CATEGORY} ASC`;
+
+    const rows = await query(sql, params);
+    const subCategories = rows.map(row => row[VACCINES_FIELDS.SUB_CATEGORY]).filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine sub-categories fetched successfully',
+      data: {
+        category: category || null,
+        sub_categories: subCategories
+      }
+    });
+  } catch (error) {
+    logger.error('getVaccineSubCategoriesAPI error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch vaccine sub-categories'
     });
   }
 };
