@@ -27,8 +27,21 @@ export const getDashboardStats = async (req, res) => {
       return res.status(403).json({ success: false, message: 'User/token mismatch' });
     }
     // Totals
-    const [usersCountRow] = await query('SELECT COUNT(*) AS total_users FROM users WHERE is_active = true');
-    const [dependentsCountRow] = await query('SELECT COUNT(*) AS total_dependents FROM dependents WHERE is_active = 1');
+    const [userStatsRow] = await query(`
+      SELECT 
+        COUNT(*) AS total_users,
+        SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) AS active_users,
+        SUM(CASE WHEN is_active = false THEN 1 ELSE 0 END) AS inactive_users
+      FROM users
+    `);
+
+    const [dependentStatsRow] = await query(`
+      SELECT 
+        COUNT(*) AS total_dependents,
+        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_dependents,
+        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) AS inactive_dependents
+      FROM dependents
+    `);
     const [completedVaccinesRow] = await query("SELECT COUNT(*) AS total_completed FROM user_vaccines WHERE is_active = true AND status = 'completed'");
     const [totalVaccinesRow] = await query('SELECT COUNT(*) AS total_vaccines FROM vaccines');
 
@@ -61,9 +74,13 @@ export const getDashboardStats = async (req, res) => {
       message: 'Admin dashboard stats fetched successfully',
       data: {
         totals: {
-          users: usersCountRow?.total_users || 0,
-          dependents: dependentsCountRow?.total_dependents || 0,
-          total_users_with_dependents: (usersCountRow?.total_users || 0) + (dependentsCountRow?.total_dependents || 0),
+          users: userStatsRow?.total_users || 0,
+          active_users: userStatsRow?.active_users || 0,
+          inactive_users: userStatsRow?.inactive_users || 0,
+          dependents: dependentStatsRow?.total_dependents || 0,
+          active_dependents: dependentStatsRow?.active_dependents || 0,
+          inactive_dependents: dependentStatsRow?.inactive_dependents || 0,
+          total_users_with_dependents: (userStatsRow?.total_users || 0) + (dependentStatsRow?.total_dependents || 0),
           completed_vaccines: completedVaccinesRow?.total_completed || 0,
           total_vaccines: totalVaccinesRow?.total_vaccines || 0
         },
