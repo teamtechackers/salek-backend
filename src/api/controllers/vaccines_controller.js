@@ -190,8 +190,84 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
   }
 };
 
+export const getVaccineTypesAPI = async (req, res) => {
+  try {
+    const { admin_user_id } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id query parameter is required'
+      });
+    }
+
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
+
+    logger.info(`Admin ${adminUserId} requested vaccine types`);
+
+    const sql = `
+      SELECT DISTINCT ${VACCINES_FIELDS.TYPE}
+      FROM ${VACCINES_TABLE}
+      WHERE ${VACCINES_FIELDS.IS_ACTIVE} = true
+      ORDER BY ${VACCINES_FIELDS.TYPE} ASC
+    `;
+
+    const rows = await query(sql);
+    const types = rows.map(row => row[VACCINES_FIELDS.TYPE]).filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Vaccine types fetched successfully',
+      data: {
+        types
+      }
+    });
+  } catch (error) {
+    logger.error('getVaccineTypesAPI error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch vaccine types'
+    });
+  }
+};
+
 export const getVaccineCategoriesAPI = async (req, res) => {
   try {
+    const { admin_user_id } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id query parameter is required'
+      });
+    }
+
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
+
     const sql = `
       SELECT DISTINCT ${VACCINES_FIELDS.CATEGORY}
       FROM ${VACCINES_TABLE}
@@ -220,7 +296,28 @@ export const getVaccineCategoriesAPI = async (req, res) => {
 
 export const getVaccineSubCategoriesAPI = async (req, res) => {
   try {
-    const { category } = req.query;
+    const { admin_user_id, category } = req.query;
+
+    if (!admin_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'admin_user_id query parameter is required'
+      });
+    }
+
+    let adminUserId;
+    if (isNaN(admin_user_id)) {
+      adminUserId = decryptUserId(admin_user_id);
+    } else {
+      adminUserId = parseInt(admin_user_id, 10);
+    }
+
+    if (!adminUserId || adminUserId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin user ID mismatch'
+      });
+    }
 
     let sql = `
       SELECT DISTINCT ${VACCINES_FIELDS.SUB_CATEGORY}
