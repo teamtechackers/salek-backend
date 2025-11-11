@@ -18,6 +18,9 @@ import {
   getCountriesAPI,
   getCitiesAPI,
   getHospitalsAPI,
+  getVaccineTypesAPI,
+  getVaccineCategoriesAPI,
+  getVaccineSubCategoriesAPI,
   addVaccineAPI,
   getDependentVaccinesAPI,
   addDependentVaccineRecordAPI,
@@ -28,6 +31,10 @@ import { authenticateToken } from '../../middleware/auth_middleware.js';
 import { uploadVaccineImage } from '../../middleware/upload_middleware.js';
 
 const router = express.Router();
+
+if (process.env.NODE_ENV === 'development') {
+  console.log('Vaccines routes registered');
+}
 
 router.use(authenticateToken);
 
@@ -52,6 +59,9 @@ router.get('/get-record-dependent', getRecordDependent);
 router.get('/countries', getCountriesAPI);
 router.get('/cities', getCitiesAPI);
 router.get('/hospitals', getHospitalsAPI);
+router.get('/types', getVaccineTypesAPI);
+router.get('/categories', getVaccineCategoriesAPI);
+router.get('/sub-categories', getVaccineSubCategoriesAPI);
 
 // Dependent vaccine routes
 router.get('/get-dependent-vaccines', getDependentVaccinesAPI);
