@@ -80,7 +80,6 @@ export const getDashboardStats = async (req, res) => {
           dependents: dependentStatsRow?.total_dependents || 0,
           active_dependents: dependentStatsRow?.active_dependents || 0,
           inactive_dependents: dependentStatsRow?.inactive_dependents || 0,
-          total_users_with_dependents: (userStatsRow?.total_users || 0) + (dependentStatsRow?.total_dependents || 0),
           completed_vaccines: completedVaccinesRow?.total_completed || 0,
           total_vaccines: totalVaccinesRow?.total_vaccines || 0
         },
