@@ -228,7 +228,7 @@ export const getAdminUsersList = async (req, res) => {
       created_at: u.created_at,
       updated_at: u.updated_at,
       is_active: !!u.is_active,
-      status: 'active'
+      status: u.is_active ? 'active' : 'inactive'
     }));
 
     return res.status(200).json({
