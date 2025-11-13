@@ -21,6 +21,19 @@ const sendOtp = async (req, res) => {
       });
     }
 
+    // If user exists but has been deactivated/deleted, block login
+    try {
+      const existingUser = await getUserByPhoneNumber(phone, true);
+      if (existingUser.success && existingUser.user && existingUser.user.is_active === false) {
+        return res.status(403).json({
+          success: false,
+          message: 'Account is disabled. Please contact support.'
+        });
+      }
+    } catch (lookupError) {
+      logger.warn('User lookup failed during send OTP:', lookupError.message);
+    }
+
     const result = await sendOtpWithFallback(phone);
 
     if (!result.success) {
@@ -88,6 +101,14 @@ const verifyOtpAndLogin = async (req, res) => {
     }
 
     const user = userResult.user;
+
+    if (user && user.is_active === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is disabled. Please contact support.'
+      });
+    }
+
     await updateUserLastLogin(user.id);
 
     const jwtToken = generateToken({ userId: user.id, phoneNumber: phone });
