@@ -95,16 +95,30 @@ export const getDashboardStats = async (req, res) => {
 
 export const getAdminUsersList = async (req, res) => {
   try {
-    const { page = 0, limit = 10, search } = req.query;
+    const { page = 0, limit = 10, search, status } = req.query;
     const pageNum = Math.max(parseInt(page, 10) || 0, 0); // zero-based page index
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = pageNum * pageSize;
 
-    let where = 'WHERE u.is_active = 1';
+    let where = 'WHERE 1 = 1';
     const params = [];
     if (search) {
-      where += ' AND (phone_number LIKE ? OR full_name LIKE ?)';
+      where += ' AND (u.phone_number LIKE ? OR u.full_name LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status) {
+      const normalizedStatus = status.toLowerCase();
+      if (normalizedStatus === 'active') {
+        where += ' AND u.is_active = 1';
+      } else if (normalizedStatus === 'inactive') {
+        where += ' AND u.is_active = 0';
+      } else if (normalizedStatus !== 'all') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid status filter. Allowed values: active, inactive, all'
+        });
+      }
     }
 
     const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
