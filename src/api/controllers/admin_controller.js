@@ -107,18 +107,18 @@ export const getAdminUsersList = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    if (status) {
-      const normalizedStatus = status.toLowerCase();
-      if (normalizedStatus === 'active') {
-        where += ' AND u.is_active = 1';
-      } else if (normalizedStatus === 'inactive') {
-        where += ' AND u.is_active = 0';
-      } else if (normalizedStatus !== 'all') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status filter. Allowed values: active, inactive, all'
-        });
-      }
+    const normalizedStatus = (status || 'active').toLowerCase();
+    if (normalizedStatus === 'active') {
+      where += ' AND u.is_active = 1';
+    } else if (normalizedStatus === 'inactive') {
+      where += ' AND u.is_active = 0';
+    } else if (normalizedStatus === 'all') {
+      // no filter
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status filter. Allowed values: active, inactive, all'
+      });
     }
 
     const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
