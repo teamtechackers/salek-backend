@@ -19,6 +19,7 @@ export const USER_SCHEMA = `
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_phone_number (phone_number)
   )
 `;
@@ -41,5 +42,6 @@ export const USER_FIELDS = {
   IMAGE: 'image',
   CREATED_AT: 'created_at',
   UPDATED_AT: 'updated_at',
-  IS_ACTIVE: 'is_active'
+  IS_ACTIVE: 'is_active',
+  DELETED_AT: 'deleted_at'
 };

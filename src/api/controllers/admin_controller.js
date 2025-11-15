@@ -33,8 +33,12 @@ export const getDashboardStats = async (req, res) => {
         SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) AS active_users,
         SUM(CASE WHEN is_active = false THEN 1 ELSE 0 END) AS inactive_users
       FROM users
-      WHERE is_active IN (0,1)
-        AND deleted_at IS NULL
+      WHERE deleted_at IS NULL
+    `);
+    const [deletedUsersRow] = await query(`
+      SELECT COUNT(*) AS deleted_users
+      FROM users
+      WHERE deleted_at IS NOT NULL
     `);
 
     const [dependentStatsRow] = await query(`
@@ -79,6 +83,7 @@ export const getDashboardStats = async (req, res) => {
           users: userStatsRow?.total_users || 0,
           active_users: userStatsRow?.active_users || 0,
           inactive_users: userStatsRow?.inactive_users || 0,
+          deleted_users: deletedUsersRow?.deleted_users || 0,
           dependents: dependentStatsRow?.total_dependents || 0,
           active_dependents: dependentStatsRow?.active_dependents || 0,
           inactive_dependents: dependentStatsRow?.inactive_dependents || 0,
@@ -110,17 +115,22 @@ export const getAdminUsersList = async (req, res) => {
     }
 
     const normalizedStatus = (status || 'active').toLowerCase();
-    if (normalizedStatus === 'active') {
-      where += ' AND u.is_active = 1';
-    } else if (normalizedStatus === 'inactive') {
-      where += ' AND u.is_active = 0';
-    } else if (normalizedStatus === 'all') {
-      // no filter
+    if (normalizedStatus === 'deleted') {
+      where += ' AND u.deleted_at IS NOT NULL';
     } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status filter. Allowed values: active, inactive, all'
-      });
+      where += ' AND u.deleted_at IS NULL';
+      if (normalizedStatus === 'active') {
+        where += ' AND u.is_active = 1';
+      } else if (normalizedStatus === 'inactive') {
+        where += ' AND u.is_active = 0';
+      } else if (normalizedStatus === 'all') {
+        where += ' AND u.is_active IN (0,1)';
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid status filter. Allowed values: active, inactive, all, deleted'
+        });
+      }
     }
 
     const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
@@ -147,6 +157,7 @@ export const getAdminUsersList = async (req, res) => {
         u.image,
         u.created_at,
         u.updated_at,
+        u.deleted_at,
         u.is_active,
         -- Dependents count
         COALESCE(dep_count.dependents_count, 0) as dependents_count,
@@ -223,29 +234,33 @@ export const getAdminUsersList = async (req, res) => {
       });
     }
 
-    const users = dataRows.map(u => ({
-      id: u.id,
-      encrypted_id: encryptUserId(u.id),
-      image: u.image ? `${BASE_URL}${u.image}` : null,
-      username: u.full_name || null,
-      email: null,
-      phoneNo: u.phone_number || null,
-      DOB: u.dob || null,
-      gender: u.gender || null,
-      country: u.country || null,
-      address: u.address || null,
-      contact_no: u.contact_no || null,
-      material_status: u.material_status || null,
-      do_you_have_children: !!u.do_you_have_children,
-      how_many_children: u.how_many_children || 0,
-      are_you_pregnant: !!u.are_you_pregnant,
-      pregnancy_detail: u.pregnancy_detail || null,
-      profile_completed: !!u.profile_completed,
-      created_at: u.created_at,
-      updated_at: u.updated_at,
-      is_active: !!u.is_active,
-      status: u.is_active ? 'active' : 'inactive'
-    }));
+    const users = dataRows.map(u => {
+      const statusLabel = u.deleted_at ? 'deleted' : (u.is_active ? 'active' : 'inactive');
+      return {
+        id: u.id,
+        encrypted_id: encryptUserId(u.id),
+        image: u.image ? `${BASE_URL}${u.image}` : null,
+        username: u.full_name || null,
+        email: null,
+        phoneNo: u.phone_number || null,
+        DOB: u.dob || null,
+        gender: u.gender || null,
+        country: u.country || null,
+        address: u.address || null,
+        contact_no: u.contact_no || null,
+        material_status: u.material_status || null,
+        do_you_have_children: !!u.do_you_have_children,
+        how_many_children: u.how_many_children || 0,
+        are_you_pregnant: !!u.are_you_pregnant,
+        pregnancy_detail: u.pregnancy_detail || null,
+        profile_completed: !!u.profile_completed,
+        created_at: u.created_at,
+        updated_at: u.updated_at,
+        deleted_at: u.deleted_at,
+        is_active: !!u.is_active,
+        status: statusLabel
+      };
+    });
 
     return res.status(200).json({
       success: true,
@@ -325,9 +340,9 @@ export const getAdminUserDetails = async (req, res) => {
     const userSql = `
       SELECT id, phone_number, full_name, dob, gender, country, address, 
              contact_no, material_status, do_you_have_children, how_many_children,
-             are_you_pregnant, pregnancy_detail, profile_completed, image, is_active, created_at, updated_at
+             are_you_pregnant, pregnancy_detail, profile_completed, image, is_active, created_at, updated_at, deleted_at
       FROM users 
-      WHERE id = ?
+      WHERE id = ? AND deleted_at IS NULL
     `;
     const userRows = await query(userSql, [userId]);
     
@@ -1203,7 +1218,7 @@ export const deleteAdminUser = async (req, res) => {
     }
 
     // Check if user exists
-    const checkSql = `SELECT id, full_name FROM users WHERE id = ? AND is_active = true`;
+    const checkSql = `SELECT id, full_name FROM users WHERE id = ? AND deleted_at IS NULL`;
     const [existingUser] = await query(checkSql, [targetUserId]);
 
     if (!existingUser) {
@@ -1216,7 +1231,9 @@ export const deleteAdminUser = async (req, res) => {
     // Soft delete user - set is_active to false
     const deleteSql = `
       UPDATE users
-      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      SET is_active = false,
+          deleted_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 

@@ -21,10 +21,10 @@ const sendOtp = async (req, res) => {
       });
     }
 
-    // If user exists but has been deactivated/deleted, block login
+    // If user exists but has been soft-deleted, block login
     try {
       const existingUser = await getUserByPhoneNumber(phone, true);
-      if (existingUser.success && existingUser.user && existingUser.user.is_active === false) {
+      if (existingUser.success && existingUser.user && existingUser.user.deleted_at) {
         return res.status(403).json({
           success: false,
           message: 'Account is disabled. Please contact support.'
@@ -102,7 +102,7 @@ const verifyOtpAndLogin = async (req, res) => {
 
     const user = userResult.user;
 
-    if (user && user.is_active === false) {
+    if (user && user.deleted_at) {
       return res.status(403).json({
         success: false,
         message: 'Account is disabled. Please contact support.'
