@@ -34,6 +34,7 @@ export const getDashboardStats = async (req, res) => {
         SUM(CASE WHEN is_active = false THEN 1 ELSE 0 END) AS inactive_users
       FROM users
       WHERE is_active IN (0,1)
+        AND deleted_at IS NULL
     `);
 
     const [dependentStatsRow] = await query(`
