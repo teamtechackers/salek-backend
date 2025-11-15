@@ -102,7 +102,7 @@ export const getDashboardStats = async (req, res) => {
 
 export const getAdminUsersList = async (req, res) => {
   try {
-    const { page = 0, limit = 10, search, status } = req.query;
+    const { page = 0, limit = 10, search } = req.query;
     const pageNum = Math.max(parseInt(page, 10) || 0, 0); // zero-based page index
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = pageNum * pageSize;
@@ -114,24 +114,7 @@ export const getAdminUsersList = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    const normalizedStatus = (status || 'active').toLowerCase();
-    if (normalizedStatus === 'deleted') {
-      where += ' AND u.deleted_at IS NOT NULL';
-    } else {
-      where += ' AND u.deleted_at IS NULL';
-      if (normalizedStatus === 'active') {
-        where += ' AND u.is_active = 1';
-      } else if (normalizedStatus === 'inactive') {
-        where += ' AND u.is_active = 0';
-      } else if (normalizedStatus === 'all') {
-        where += ' AND u.is_active IN (0,1)';
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status filter. Allowed values: active, inactive, all, deleted'
-        });
-      }
-    }
+    where += ' AND u.deleted_at IS NULL';
 
     const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
     const [countRow] = await query(countSql, params);
