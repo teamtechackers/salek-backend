@@ -337,12 +337,6 @@ export const getAdminUserDetails = async (req, res) => {
     }
 
     const user = userRows[0];
-    if (!user.is_active) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
     // Normalize image to full URL if present
     const userImage = user.image ? `${BASE_URL}${user.image}` : null;
 
@@ -1044,7 +1038,7 @@ export const updateAdminUser = async (req, res) => {
     }
 
     // Check if user exists
-    const checkSql = `SELECT id FROM users WHERE id = ? AND is_active = true`;
+    const checkSql = `SELECT id FROM users WHERE id = ? AND deleted_at IS NULL`;
     let existingUser;
     try {
       [existingUser] = await query(checkSql, [targetUserId]);
