@@ -477,9 +477,9 @@ export const getAdminAllVaccines = async (req, res) => {
     const params = [];
 
     if (search) {
-      whereClause += ' AND (name LIKE ? OR type LIKE ?)';
+      whereClause += ' AND (name LIKE ? OR type LIKE ? OR category LIKE ? OR sub_category LIKE ?)';
       const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
     if (type) {
