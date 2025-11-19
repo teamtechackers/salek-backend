@@ -102,7 +102,7 @@ export const getDashboardStats = async (req, res) => {
 
 export const getAdminUsersList = async (req, res) => {
   try {
-    const { page = 0, limit = 10, search } = req.query;
+    const { page = 0, limit = 10, search, status, date, country, gender } = req.query;
     const pageNum = Math.max(parseInt(page, 10) || 0, 0); // zero-based page index
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = pageNum * pageSize;
@@ -115,6 +115,30 @@ export const getAdminUsersList = async (req, res) => {
     }
 
     where += ' AND u.deleted_at IS NULL';
+
+    if (status) {
+      if (status === 'active') {
+        where += ' AND u.is_active = true';
+      } else if (status === 'inactive') {
+        where += ' AND u.is_active = false';
+      }
+      // 'all' or any other value shows both active and inactive
+    }
+
+    if (date) {
+      where += ' AND DATE(u.created_at) = ?';
+      params.push(date);
+    }
+
+    if (country) {
+      where += ' AND u.country = ?';
+      params.push(country);
+    }
+
+    if (gender) {
+      where += ' AND u.gender = ?';
+      params.push(gender);
+    }
 
     const countSql = `SELECT COUNT(*) AS total FROM users u ${where}`;
     const [countRow] = await query(countSql, params);
