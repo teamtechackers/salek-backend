@@ -442,7 +442,7 @@ export const getAdminUserDetails = async (req, res) => {
 
 export const getAdminAllVaccines = async (req, res) => {
   try {
-    const { admin_user_id, page = 0, limit = 50, search, type, category } = req.query;
+    const { admin_user_id, page = 0, limit = 50, search, type, category, date } = req.query;
     
     if (!admin_user_id) {
       return res.status(400).json({ 
@@ -490,6 +490,11 @@ export const getAdminAllVaccines = async (req, res) => {
     if (category) {
       whereClause += ' AND category = ?';
       params.push(category);
+    }
+
+    if (date) {
+      whereClause += ' AND DATE(created_at) = ?';
+      params.push(date);
     }
 
     // Get total count
