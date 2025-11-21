@@ -126,7 +126,16 @@ export const getAdminUsersList = async (req, res) => {
     }
 
     if (date) {
-      where += ' AND DATE(u.created_at) = ?';
+      // Validate date format: YYYY-MM-DD
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date format. Please use YYYY-MM-DD format (e.g., 1995-11-27)'
+        });
+      }
+      // Filter by date of birth (dob)
+      where += ' AND u.dob = ?';
       params.push(date);
     }
 
