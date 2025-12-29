@@ -253,25 +253,25 @@ export const getAdminUsersList = async (req, res) => {
     const users = dataRows.map(u => {
       const statusLabel = u.deleted_at ? 'deleted' : (u.is_active ? 'active' : 'inactive');
       return {
-        id: u.id,
-        encrypted_id: encryptUserId(u.id),
-        image: u.image ? `${BASE_URL}${u.image}` : null,
-        username: u.full_name || null,
-        email: null,
-        phoneNo: u.phone_number || null,
-        DOB: u.dob || null,
-        gender: u.gender || null,
-        country: u.country || null,
-        address: u.address || null,
-        contact_no: u.contact_no || null,
-        material_status: u.material_status || null,
-        do_you_have_children: !!u.do_you_have_children,
-        how_many_children: u.how_many_children || 0,
-        are_you_pregnant: !!u.are_you_pregnant,
-        pregnancy_detail: u.pregnancy_detail || null,
-        profile_completed: !!u.profile_completed,
-        created_at: u.created_at,
-        updated_at: u.updated_at,
+      id: u.id,
+      encrypted_id: encryptUserId(u.id),
+      image: u.image ? `${BASE_URL}${u.image}` : null,
+      username: u.full_name || null,
+      email: null,
+      phoneNo: u.phone_number || null,
+      DOB: u.dob || null,
+      gender: u.gender || null,
+      country: u.country || null,
+      address: u.address || null,
+      contact_no: u.contact_no || null,
+      material_status: u.material_status || null,
+      do_you_have_children: !!u.do_you_have_children,
+      how_many_children: u.how_many_children || 0,
+      are_you_pregnant: !!u.are_you_pregnant,
+      pregnancy_detail: u.pregnancy_detail || null,
+      profile_completed: !!u.profile_completed,
+      created_at: u.created_at,
+      updated_at: u.updated_at,
         deleted_at: u.deleted_at,
         is_active: !!u.is_active,
         status: statusLabel
@@ -1625,7 +1625,7 @@ export const updateAdminDependent = async (req, res) => {
         delete updateData.relation_type;
       }
     }
-
+    
     // Handle image upload from multer
     if (req.file) {
       updateData.image = req.file.path;

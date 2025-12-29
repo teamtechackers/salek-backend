@@ -27,7 +27,9 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:3001',
       'https://salek-frontend.onrender.com',
-      'https://salek-backend-v1.onrender.com'
+      'https://salek-backend-v1.onrender.com',
+      'http://13.205.36.240',
+      'https://13.205.36.240'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
