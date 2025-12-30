@@ -71,7 +71,7 @@ export const sendOtpTwilio = async (phoneNumber) => {
 
   } catch (error) {
     logger.error('Twilio OTP send error:', error);
-    
+
     if (error.code === 20003) {
       return {
         success: false,
@@ -193,12 +193,22 @@ const TEST_PHONE_NUMBERS = {
   '+923001234197': '123456',
   '+923001234198': '123456',
   '+923001234199': '123456',
+  '+923001235199': '123456',
+  '+923001235299': '123456',
+  '+923001235399': '123456',
+  '+923001235499': '123456',
+  '+923001235599': '123456',
+  '+923001235699': '123456',
+  '+923001235799': '123456',
+  '+923001235899': '123456',
+  '+923001235999': '123456',
+
 };
 
 export const sendOtpWithFallback = async (phoneNumber) => {
   if (TEST_PHONE_NUMBERS[phoneNumber]) {
     const session = await createOtpSession(phoneNumber);
-    
+
     logger.info(`🧪 Test number detected: ${phoneNumber}, OTP: ${TEST_PHONE_NUMBERS[phoneNumber]}`);
 
     return {
