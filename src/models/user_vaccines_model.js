@@ -23,7 +23,6 @@ export const USER_VACCINES_SCHEMA = `
     FOREIGN KEY (city_id) REFERENCES cities(city_id) ON DELETE SET NULL,
     
     INDEX idx_user_vaccine (user_id, vaccine_id),
-    INDEX idx_reminder_date (reminder_date, is_reminder),
     INDEX idx_status (status),
     INDEX idx_schedule (schedule_id)
   )

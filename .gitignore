@@ -73,3 +73,6 @@ yarn.lock
 
 # Persistent uploads (user uploads will survive server restarts)
 persistent_uploads/
+
+# AWS PEM key
+salek_test.pem

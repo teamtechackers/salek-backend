@@ -156,7 +156,6 @@ export const verifyOtpTwilio = async (sessionId, otpCode, phoneNumber) => {
 
 // Test phone numbers for development
 const TEST_PHONE_NUMBERS = {
-  '+923078775479': '123456',
   '+923078795665': '654321',
   '+923001234567': '111111',
   '+923057220934': '123456',
