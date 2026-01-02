@@ -4,8 +4,6 @@ import { authenticateToken } from '../../middleware/auth_middleware.js';
 
 const router = express.Router();
 
-router.use(authenticateToken);
-
-router.get('/dashboard', getDashboardData);
+router.get('/dashboard', authenticateToken, getDashboardData);
 
 export default router;

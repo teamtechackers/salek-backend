@@ -79,7 +79,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     endpoints: {
-      health: '/health',
+      health: '/api/health',
       auth: '/api/auth',
       user: '/api/user',
       vaccines: '/api/vaccines',
@@ -91,14 +91,17 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint (both root and /api)
+const healthCheck = (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()
   });
-});
+};
+
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 // 404 handler - but not for static files
 app.use((req, res) => {
@@ -115,7 +118,7 @@ app.use((req, res) => {
     message: 'Route not found',
     availableEndpoints: {
       root: '/',
-      health: '/health',
+      health: '/api/health',
       auth: '/api/auth',
       user: '/api/user',
       vaccines: '/api/vaccines',
