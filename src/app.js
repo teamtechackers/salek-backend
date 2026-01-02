@@ -21,7 +21,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:3000',
@@ -29,9 +29,10 @@ const corsOptions = {
       'https://salek-frontend.onrender.com',
       'https://salek-backend-v1.onrender.com',
       'http://13.205.36.240',
-      'https://13.205.36.240'
+      'https://13.205.36.240',
+      'https://myvaxine.com',
     ];
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -108,7 +109,7 @@ app.use((req, res) => {
       message: 'Image not found'
     });
   }
-  
+
   res.status(404).json({
     success: false,
     message: 'Route not found',
