@@ -16,6 +16,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Log incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.path}`);
+  next();
+});
+
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
@@ -31,9 +37,14 @@ const corsOptions = {
       'http://13.205.36.240',
       'https://13.205.36.240',
       'https://myvaxine.com',
+      'https://www.myvaxine.com',
     ];
 
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Case-insensitive check and trim trailing slash
+    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(ao => ao.toLowerCase().replace(/\/$/, '') === normalizedOrigin);
+
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
