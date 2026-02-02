@@ -3,12 +3,14 @@ import { USER_SCHEMA, USER_TABLE, USER_FIELDS } from '../models/user_model.js';
 import { VACCINES_SCHEMA } from '../models/vaccines_model.js';
 import { USER_VACCINES_SCHEMA } from '../models/user_vaccines_model.js';
 import { COUNTRIES_SCHEMA } from '../models/countries_model.js';
+import { STATES_SCHEMA } from '../models/states_model.js';
 import { CITIES_SCHEMA } from '../models/cities_model.js';
 import { VACCINE_SCHEDULE_SCHEMA } from '../models/vaccine_schedule_model.js';
 import { VACCINE_REMINDERS_SCHEMA } from '../models/vaccine_reminders_model.js';
 import { RELATIONSHIPS_SCHEMA } from '../models/relationships_model.js';
 import { seedVaccinesData } from '../services/vaccines_service.js';
 import { seedCountriesData } from '../services/countries_service.js';
+import { seedStatesData } from '../services/states_service.js';
 import { seedCitiesData } from '../services/cities_service.js';
 import { seedVaccineScheduleData } from '../services/vaccine_schedule_service.js';
 import { seedRelationshipsData } from '../services/relationships_service.js';
@@ -42,7 +44,7 @@ const ensureUsersTableColumns = async () => {
 export const initializeDatabase = async () => {
   try {
     const isConnected = await testConnection();
-    
+
     if (!isConnected) {
       throw new Error('Database connection failed');
     }
@@ -51,6 +53,7 @@ export const initializeDatabase = async () => {
     await ensureUsersTableColumns();
     await query(VACCINES_SCHEMA);
     await query(COUNTRIES_SCHEMA);
+    await query(STATES_SCHEMA);
     await query(CITIES_SCHEMA);
     await query(VACCINE_SCHEDULE_SCHEMA);
     await query(USER_VACCINES_SCHEMA);
@@ -59,18 +62,19 @@ export const initializeDatabase = async () => {
 
     await seedVaccinesData();
     await seedCountriesData();
+    await seedStatesData();
     await seedCitiesData();
     await seedVaccineScheduleData();
     await seedRelationshipsData();
-    
+
     logger.info('Database tables initialized successfully');
-    
+
     return { success: true };
   } catch (error) {
     logger.error('Database initialization failed:', error);
-    return { 
-      success: false, 
-      error: error.message 
+    return {
+      success: false,
+      error: error.message
     };
   }
 };
