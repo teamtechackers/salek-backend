@@ -1,5 +1,5 @@
 import express from 'express';
-import { 
+import {
   getVaccinesList,
   getSpecificUserVaccineRecords,
   addSpecificUserVaccine,
@@ -16,6 +16,7 @@ import {
   getRecord,
   getRecordDependent,
   getCountriesAPI,
+  getStatesAPI,
   getCitiesAPI,
   getHospitalsAPI,
   getVaccineTypesAPI,
@@ -57,6 +58,7 @@ router.get('/get-record-dependent', getRecordDependent);
 
 // Meta under vaccines
 router.get('/countries', getCountriesAPI);
+router.get('/states', getStatesAPI);
 router.get('/cities', getCitiesAPI);
 router.get('/hospitals', getHospitalsAPI);
 router.get('/types', getVaccineTypesAPI);
