@@ -53,6 +53,20 @@ export const searchLocations = async (req, res) => {
     }
 };
 
+export const getAllCountries = async (req, res) => {
+    try {
+        const sql = `SELECT * FROM countries ORDER BY country_name ASC`;
+        const results = await query(sql);
+        return res.status(200).json({
+            success: true,
+            data: results
+        });
+    } catch (error) {
+        logger.error('Get all countries admin error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 export const triggerGlobalSeed = async (req, res) => {
     try {
         // This is a heavy operation, so we run it asynchronously in the background
