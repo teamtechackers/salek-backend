@@ -1,9 +1,9 @@
-import { 
-  addDependent, 
-  getDependentsByUserId, 
-  getDependentById, 
-  updateDependentProfile, 
-  deleteDependent 
+import {
+  addDependent,
+  getDependentsByUserId,
+  getDependentById,
+  updateDependentProfile,
+  deleteDependent
 } from '../../services/dependents_service.js';
 import { generateUserVaccines } from '../../services/user_vaccines_service.js';
 import { decryptUserId, encryptUserId } from '../../services/encryption_service.js';
@@ -14,15 +14,16 @@ import logger from '../../config/logger.js';
 // Add a new dependent
 export const addDependentAPI = async (req, res) => {
   try {
-    const { 
+    const {
       user_id,
       relation_id,
-      full_name, 
-      dob, 
-      gender, 
-      country, 
-      address, 
-      contact_no, 
+      full_name,
+      phone_number,
+      dob,
+      gender,
+      country,
+      address,
+      contact_no,
       material_status,
       do_you_have_children,
       how_many_children,
@@ -37,6 +38,13 @@ export const addDependentAPI = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'User ID is required'
+      });
+    }
+
+    if (!phone_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
       });
     }
 
@@ -59,6 +67,7 @@ export const addDependentAPI = async (req, res) => {
       userId: actualUserId,
       relationId: relation_id ? parseInt(relation_id) : null,
       fullName: full_name,
+      phoneNumber: phone_number,
       dob: dob,
       gender: gender,
       country: country,
@@ -70,7 +79,7 @@ export const addDependentAPI = async (req, res) => {
       areYouPregnant: are_you_pregnant,
       pregnancyDetail: pregnancy_detail,
       image: image,
-      profileCompleted: !!(full_name && dob) ? 1 : 0
+      profileCompleted: !!(full_name && dob && phone_number) ? 1 : 0
     };
 
     const result = await addDependent(dependentData);
@@ -84,7 +93,7 @@ export const addDependentAPI = async (req, res) => {
 
     // Generate vaccines for the new dependent automatically
     const vaccineResult = await generateUserVaccines(actualUserId, result.dependentId);
-    
+
     if (!vaccineResult.success) {
       logger.warn(`Failed to generate vaccines for dependent ${result.dependentId}: ${vaccineResult.error}`);
     } else {
@@ -282,13 +291,14 @@ export const getDependentAPI = async (req, res) => {
 export const updateDependentAPI = async (req, res) => {
   try {
     const { dependent_id } = req.params;
-    const { 
-      full_name, 
-      dob, 
-      gender, 
-      country, 
-      address, 
-      contact_no, 
+    const {
+      full_name,
+      phone_number,
+      dob,
+      gender,
+      country,
+      address,
+      contact_no,
       material_status,
       do_you_have_children,
       how_many_children,
@@ -319,9 +329,10 @@ export const updateDependentAPI = async (req, res) => {
     }
 
     const profileData = {};
-    
+
     // Only include fields that are provided
     if (full_name !== undefined) profileData.full_name = full_name;
+    if (phone_number !== undefined) profileData.phone_number = phone_number;
     if (dob !== undefined) profileData.dob = dob;
     if (gender !== undefined) profileData.gender = gender;
     if (country !== undefined) profileData.country = country;
@@ -332,7 +343,7 @@ export const updateDependentAPI = async (req, res) => {
     if (how_many_children !== undefined) profileData.how_many_children = how_many_children;
     if (are_you_pregnant !== undefined) profileData.are_you_pregnant = are_you_pregnant;
     if (pregnancy_detail !== undefined) profileData.pregnancy_detail = pregnancy_detail;
-    
+
     // Update profile_completed based on required fields
     if (full_name !== undefined || dob !== undefined) {
       const currentDependent = await getDependentById(actualDependentId);
