@@ -209,6 +209,9 @@ export const getDependentsAPI = async (req, res) => {
           pregnancy_detail: dependent.pregnancy_detail,
           image: dependent.image ? `${BASE_URL}${dependent.image}` : null,
           profile_completed: dependent.profile_completed,
+          country_id: dependent.country_id,
+          state_id: dependent.state_id,
+          city_id: dependent.city_id,
           created_at: dependent.created_at,
           updated_at: dependent.updated_at
         })),
@@ -282,6 +285,9 @@ export const getDependentAPI = async (req, res) => {
           pregnancy_detail: result.dependent.pregnancy_detail,
           image: result.dependent.image ? `${BASE_URL}${result.dependent.image}` : null,
           profile_completed: result.dependent.profile_completed,
+          country_id: result.dependent.country_id,
+          state_id: result.dependent.state_id,
+          city_id: result.dependent.city_id,
           created_at: result.dependent.created_at,
           updated_at: result.dependent.updated_at
         }
