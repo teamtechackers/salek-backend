@@ -1,14 +1,14 @@
 import { getAllVaccines, getVaccinesByType, getVaccinesByAge } from '../../services/vaccines_service.js';
-import { 
-  getUserVaccines, 
-  getUserVaccinesByStatus, 
+import {
+  getUserVaccines,
+  getUserVaccinesByStatus,
   updateVaccineStatus,
   addVaccineRecord,
   getUserVaccineRecords,
   getUserVaccinesGroupedByType
 } from '../../services/user_vaccines_service.js';
 import { getDependentById } from '../../services/dependents_service.js';
-import { 
+import {
   addVaccineReminder,
   getVaccineReminders,
   getUserAllReminders,
@@ -21,7 +21,8 @@ import { VACCINE_STATUS, USER_VACCINES_TABLE, USER_VACCINES_FIELDS } from '../..
 import { query } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import { getAllCountries } from '../../services/countries_service.js';
-import { getAllCities, getCitiesByCountry } from '../../services/cities_service.js';
+import { getStatesByCountry } from '../../services/states_service.js';
+import { getCitiesByState } from '../../services/cities_service.js';
 import { VACCINES_TABLE, VACCINES_FIELDS } from '../../models/vaccines_model.js';
 
 export const getVaccinesList = async (req, res) => {
@@ -159,12 +160,12 @@ export const getSpecificUserVaccineRecords = async (req, res) => {
     const excludeCompletedFlag = exclude_completed === 'true';
     const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
     const travelFlag = travel === 'true';
-    
+
     // If travel=true, only show Travel vaccines, otherwise use the type parameter
     const vaccineType = travelFlag ? 'Travel' : type;
-    
+
     console.log(`Travel filter: travelFlag=${travelFlag}, vaccineType=${vaccineType}, type=${type}`);
-    
+
     const { getUserVaccinesGroupedByType } = await import('../../services/user_vaccines_service.js');
     const grouped = await getUserVaccinesGroupedByType(actualUserId, excludeCompletedFlag, vaccineType, null, yearsAhead);
 
@@ -611,7 +612,7 @@ export const getRemindersAPI = async (req, res) => {
     // If user_vaccine_id is provided, get reminders for specific vaccine
     if (user_vaccine_id) {
       const result = await getVaccineReminders(parseInt(user_vaccine_id));
-      
+
       if (!result.success) {
         return res.status(500).json({
           success: false,
@@ -755,9 +756,9 @@ export const markVaccinesAsTaken = async (req, res) => {
 
         // Set default completed date to current date if not provided
         const finalCompletedDate = completed_date || new Date().toISOString().split('T')[0];
-        
+
         const result = await updateVaccineStatus(
-          userVaccineId, 
+          userVaccineId,
           VACCINE_STATUS.COMPLETED,
           finalCompletedDate,
           city_id || null,
@@ -957,15 +958,15 @@ export const getVaccineDoseSummaryAPI = async (req, res) => {
 
 export const addRecord = async (req, res) => {
   try {
-    const { 
+    const {
       user_id,
-      user_vaccine_id, 
-      dose_number, 
-      completed_date, 
-      completed_time, 
+      user_vaccine_id,
+      dose_number,
+      completed_date,
+      completed_time,
       city_id,
-      hospital_id, 
-      notes 
+      hospital_id,
+      notes
     } = req.body;
 
     if (!user_id) {
@@ -1072,16 +1073,16 @@ export const addRecord = async (req, res) => {
 // Add vaccine record for dependent
 export const addRecordDependent = async (req, res) => {
   try {
-    const { 
+    const {
       user_id,
       dependent_id,
-      user_vaccine_id, 
-      dose_number, 
-      completed_date, 
-      completed_time, 
+      user_vaccine_id,
+      dose_number,
+      completed_date,
+      completed_time,
       city_id,
-      hospital_id, 
-      notes 
+      hospital_id,
+      notes
     } = req.body;
 
     if (!user_id) {
@@ -1136,7 +1137,7 @@ export const addRecordDependent = async (req, res) => {
 
     // Handle dependent_id (only accept numeric dependent_id)
     let actualDependentId = parseInt(dependent_id);
-    
+
     if (!actualDependentId || isNaN(actualDependentId)) {
       return res.status(400).json({
         success: false,
@@ -1239,7 +1240,7 @@ export const getRecord = async (req, res) => {
     let actualDependentId = null;
     if (dependent_id) {
       actualDependentId = parseInt(dependent_id);
-      
+
       if (!actualDependentId || isNaN(actualDependentId)) {
         return res.status(400).json({
           success: false,
@@ -1283,7 +1284,7 @@ export const getRecord = async (req, res) => {
       });
     }
 
-    const logMessage = actualDependentId ? 
+    const logMessage = actualDependentId ?
       `Vaccine records fetched for dependent: ${actualDependentId}, user: ${actualUserId}` :
       `Vaccine records fetched for user: ${actualUserId}`;
     logger.info(logMessage);
@@ -1342,7 +1343,7 @@ export const getRecordDependent = async (req, res) => {
 
     // Handle dependent_id (only accept numeric dependent_id)
     let actualDependentId = parseInt(dependent_id);
-    
+
     if (!actualDependentId || isNaN(actualDependentId)) {
       return res.status(400).json({
         success: false,
@@ -1410,15 +1411,30 @@ export const getCountriesAPI = async (req, res) => {
   }
 };
 
-export const getCitiesAPI = async (req, res) => {
+export const getStatesAPI = async (req, res) => {
   try {
     const { country_id } = req.query;
-    let result;
-    if (country_id) {
-      result = await getCitiesByCountry(country_id);
-    } else {
-      result = await getAllCities();
+    if (!country_id) {
+      return res.status(400).json({ success: false, message: 'country_id is required' });
     }
+    const result = await getStatesByCountry(country_id);
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.error || 'Failed to fetch states' });
+    }
+    return res.status(200).json({ success: true, message: 'States fetched successfully', data: { states: result.states } });
+  } catch (error) {
+    logger.error('Get states error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const getCitiesAPI = async (req, res) => {
+  try {
+    const { state_id } = req.query;
+    if (!state_id) {
+      return res.status(400).json({ success: false, message: 'state_id is required' });
+    }
+    const result = await getCitiesByState(state_id);
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.error || 'Failed to fetch cities' });
     }
@@ -1452,20 +1468,20 @@ export const getHospitalsAPI = async (req, res) => {
 
 export const addVaccineAPI = async (req, res) => {
   try {
-    const { 
-      name, 
-      type, 
-      category, 
-      sub_category, 
-      min_age_months, 
-      max_age_months, 
-      total_doses, 
-      frequency, 
-      when_to_give, 
-      dose, 
-      route, 
-      site, 
-      notes 
+    const {
+      name,
+      type,
+      category,
+      sub_category,
+      min_age_months,
+      max_age_months,
+      total_doses,
+      frequency,
+      when_to_give,
+      dose,
+      route,
+      site,
+      notes
     } = req.body;
 
     // Validation
@@ -1485,7 +1501,7 @@ export const addVaccineAPI = async (req, res) => {
 
     // Import the service
     const { addVaccine } = await import('../../services/vaccines_service.js');
-    
+
     const result = await addVaccine({
       name,
       type,
@@ -1619,10 +1635,10 @@ export const getDependentVaccinesAPI = async (req, res) => {
       // Default to grouped by type for dependents
       const yearsAhead = parseInt(req.query.years_ahead) || 2; // Default 2 years
       const travelFlag = travel === 'true';
-      
+
       // If travel=true, only show Travel vaccines, otherwise use the type parameter
       const vaccineType = travelFlag ? 'Travel' : type;
-      
+
       console.log(`Dependent Travel filter: travelFlag=${travelFlag}, vaccineType=${vaccineType}, type=${type}`);
       console.log(`Calling getUserVaccinesGroupedByType with: userId=${actualUserId}, dependentId=${actualDependentId}, yearsAhead=${yearsAhead}`);
       result = await getUserVaccinesGroupedByType(actualUserId, false, vaccineType, actualDependentId, yearsAhead);
@@ -1694,14 +1710,14 @@ export const getDependentVaccinesAPI = async (req, res) => {
 // Add dependent vaccine record
 export const addDependentVaccineRecordAPI = async (req, res) => {
   try {
-    const { 
-      user_vaccine_id, 
-      dose_number, 
-      completed_date, 
-      completed_time, 
-      city_id, 
+    const {
+      user_vaccine_id,
+      dose_number,
+      completed_date,
+      completed_time,
+      city_id,
       notes,
-      dependent_id 
+      dependent_id
     } = req.body;
 
     if (!user_vaccine_id || !dependent_id) {
@@ -1932,7 +1948,7 @@ export const markDependentVaccinesAsTaken = async (req, res) => {
         }
 
         const result = await updateVaccineStatus(
-          userVaccineId, 
+          userVaccineId,
           VACCINE_STATUS.COMPLETED,
           completed_date || null,
           city_id || null,
