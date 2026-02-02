@@ -14,6 +14,9 @@ export const addDependent = async (dependentData) => {
         ${DEPENDENTS_FIELDS.DOB},
         ${DEPENDENTS_FIELDS.GENDER},
         ${DEPENDENTS_FIELDS.COUNTRY},
+        ${DEPENDENTS_FIELDS.COUNTRY_ID},
+        ${DEPENDENTS_FIELDS.STATE_ID},
+        ${DEPENDENTS_FIELDS.CITY_ID},
         ${DEPENDENTS_FIELDS.ADDRESS},
         ${DEPENDENTS_FIELDS.CONTACT_NO},
         ${DEPENDENTS_FIELDS.MATERIAL_STATUS},
@@ -23,9 +26,9 @@ export const addDependent = async (dependentData) => {
         ${DEPENDENTS_FIELDS.PREGNANCY_DETAIL},
         ${DEPENDENTS_FIELDS.PROFILE_COMPLETED},
         ${DEPENDENTS_FIELDS.IMAGE}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const params = [
       dependentData.userId,
       dependentData.relationId || null,
@@ -34,6 +37,9 @@ export const addDependent = async (dependentData) => {
       dependentData.dob || null,
       dependentData.gender || null,
       dependentData.country || null,
+      dependentData.countryId || null,
+      dependentData.stateId || null,
+      dependentData.cityId || null,
       dependentData.address || null,
       dependentData.contactNo || null,
       dependentData.materialStatus || null,
@@ -47,7 +53,7 @@ export const addDependent = async (dependentData) => {
 
     const result = await query(sql, params);
     const dependentId = result.insertId;
-    
+
     // Auto-generate vaccines for the dependent if DOB is provided
     if (dependentData.dob) {
       try {
@@ -58,9 +64,9 @@ export const addDependent = async (dependentData) => {
         logger.warn(`Failed to generate vaccines for dependent ${dependentId}:`, vaccineError.message);
       }
     }
-    
+
     logger.info(`Dependent added successfully: ID ${dependentId}, User ID: ${dependentData.userId}`);
-    
+
     return {
       success: true,
       dependentId: dependentId,
@@ -89,10 +95,10 @@ export const getDependentsByUserId = async (userId) => {
       AND d.${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
       ORDER BY d.${DEPENDENTS_FIELDS.CREATED_AT} DESC
     `;
-    
+
     const result = await query(sql, [userId]);
     logger.info(`Fetched ${result.length} dependents for user: ${userId}`);
-    
+
     return {
       success: true,
       dependents: result
@@ -119,16 +125,16 @@ export const getDependentById = async (dependentId) => {
       WHERE d.${DEPENDENTS_FIELDS.DEPENDENT_ID} = ? 
       AND d.${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
     `;
-    
+
     const result = await query(sql, [dependentId]);
-    
+
     if (result.length === 0) {
       return {
         success: false,
         error: DEPENDENTS_MESSAGES.DEPENDENT_NOT_FOUND
       };
     }
-    
+
     return {
       success: true,
       dependent: result[0]
@@ -147,7 +153,7 @@ export const updateDependentProfile = async (dependentId, profileData) => {
   try {
     const updateFields = [];
     const params = [];
-    
+
     // Build dynamic update query
     Object.keys(profileData).forEach(key => {
       if (profileData[key] !== undefined) {
@@ -155,31 +161,31 @@ export const updateDependentProfile = async (dependentId, profileData) => {
         params.push(profileData[key]);
       }
     });
-    
+
     if (updateFields.length === 0) {
       return {
         success: false,
         error: 'No fields to update'
       };
     }
-    
+
     params.push(dependentId);
-    
+
     const sql = `
       UPDATE ${DEPENDENTS_TABLE} 
       SET ${updateFields.join(', ')}, ${DEPENDENTS_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
       WHERE ${DEPENDENTS_FIELDS.DEPENDENT_ID} = ? AND ${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
     `;
-    
+
     const result = await query(sql, params);
-    
+
     if (result.affectedRows === 0) {
       return {
         success: false,
         error: DEPENDENTS_MESSAGES.DEPENDENT_NOT_FOUND
       };
     }
-    
+
     // If DOB is being updated, regenerate vaccines for the dependent
     if (profileData.dob) {
       try {
@@ -194,9 +200,9 @@ export const updateDependentProfile = async (dependentId, profileData) => {
         logger.warn(`Failed to regenerate vaccines for dependent ${dependentId}:`, vaccineError.message);
       }
     }
-    
+
     logger.info(`Dependent profile updated: ID ${dependentId}`);
-    
+
     return {
       success: true,
       message: DEPENDENTS_MESSAGES.DEPENDENT_UPDATED
@@ -218,18 +224,18 @@ export const deleteDependent = async (dependentId) => {
       SET ${DEPENDENTS_FIELDS.IS_ACTIVE} = 0, ${DEPENDENTS_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
       WHERE ${DEPENDENTS_FIELDS.DEPENDENT_ID} = ? AND ${DEPENDENTS_FIELDS.IS_ACTIVE} = 1
     `;
-    
+
     const result = await query(sql, [dependentId]);
-    
+
     if (result.affectedRows === 0) {
       return {
         success: false,
         error: DEPENDENTS_MESSAGES.DEPENDENT_NOT_FOUND
       };
     }
-    
+
     logger.info(`Dependent deleted: ID ${dependentId}`);
-    
+
     return {
       success: true,
       message: DEPENDENTS_MESSAGES.DEPENDENT_DELETED

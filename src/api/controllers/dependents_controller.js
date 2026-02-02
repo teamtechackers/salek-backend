@@ -28,7 +28,10 @@ export const addDependentAPI = async (req, res) => {
       do_you_have_children,
       how_many_children,
       are_you_pregnant,
-      pregnancy_detail
+      pregnancy_detail,
+      country_id,
+      state_id,
+      city_id
     } = req.body;
 
     // Handle image upload
@@ -71,6 +74,9 @@ export const addDependentAPI = async (req, res) => {
       dob: dob,
       gender: gender,
       country: country,
+      countryId: country_id ? parseInt(country_id) : null,
+      stateId: state_id ? parseInt(state_id) : null,
+      cityId: city_id ? parseInt(city_id) : null,
       address: address,
       contactNo: contact_no,
       materialStatus: material_status,
@@ -116,6 +122,9 @@ export const addDependentAPI = async (req, res) => {
           dob: dob,
           gender: gender,
           country: country,
+          country_id: country_id ? parseInt(country_id) : null,
+          state_id: state_id ? parseInt(state_id) : null,
+          city_id: city_id ? parseInt(city_id) : null,
           address: address,
           contact_no: contact_no,
           material_status: material_status,
@@ -303,7 +312,10 @@ export const updateDependentAPI = async (req, res) => {
       do_you_have_children,
       how_many_children,
       are_you_pregnant,
-      pregnancy_detail
+      pregnancy_detail,
+      country_id,
+      state_id,
+      city_id
     } = req.body;
 
     if (!dependent_id) {
@@ -336,6 +348,9 @@ export const updateDependentAPI = async (req, res) => {
     if (dob !== undefined) profileData.dob = dob;
     if (gender !== undefined) profileData.gender = gender;
     if (country !== undefined) profileData.country = country;
+    if (country_id !== undefined) profileData.country_id = country_id;
+    if (state_id !== undefined) profileData.state_id = state_id;
+    if (city_id !== undefined) profileData.city_id = city_id;
     if (address !== undefined) profileData.address = address;
     if (contact_no !== undefined) profileData.contact_no = contact_no;
     if (material_status !== undefined) profileData.material_status = material_status;
