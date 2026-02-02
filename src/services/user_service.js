@@ -10,9 +10,9 @@ export const createUser = async (phoneNumber) => {
       VALUES (?)
     `;
     const result = await query(sql, [phoneNumber]);
-    
+
     const newUserId = result.insertId;
-    
+
     // Auto-generate user vaccines based on age and schedule
     try {
       const { generateUserVaccines } = await import('./user_vaccines_service.js');
@@ -21,7 +21,7 @@ export const createUser = async (phoneNumber) => {
     } catch (vaccineError) {
       logger.warn(`Failed to generate vaccines for user ${newUserId}:`, vaccineError.message);
     }
-    
+
     return {
       success: true,
       userId: newUserId
@@ -55,7 +55,7 @@ export const getUserByPhoneNumber = async (phoneNumber, includeInactive = false)
       WHERE ${USER_FIELDS.PHONE_NUMBER} = ?${includeInactive ? '' : ` AND ${USER_FIELDS.IS_ACTIVE} = true`}
     `;
     const result = await query(sql, [phoneNumber]);
-    
+
     if (result.length === 0) {
       return {
         success: false,
@@ -82,7 +82,7 @@ export const getUserById = async (userId, includeInactive = false) => {
       WHERE ${USER_FIELDS.ID} = ?${includeInactive ? '' : ` AND ${USER_FIELDS.IS_ACTIVE} = true`}
     `;
     const result = await query(sql, [userId]);
-    
+
     if (result.length === 0) {
       return {
         success: false,
@@ -134,6 +134,9 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
       howManyChildren,
       areYouPregnant,
       pregnancyDetail,
+      countryId,
+      stateId,
+      cityId,
       image
     } = profileData;
 
@@ -151,6 +154,9 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
         ${USER_FIELDS.HOW_MANY_CHILDREN} = ?,
         ${USER_FIELDS.ARE_YOU_PREGNANT} = ?,
         ${USER_FIELDS.PREGNANCY_DETAIL} = ?,
+        ${USER_FIELDS.COUNTRY_ID} = ?,
+        ${USER_FIELDS.STATE_ID} = ?,
+        ${USER_FIELDS.CITY_ID} = ?,
         ${USER_FIELDS.IMAGE} = ?,
         ${USER_FIELDS.PROFILE_COMPLETED} = TRUE,
         ${USER_FIELDS.UPDATED_AT} = CURRENT_TIMESTAMP
@@ -169,6 +175,9 @@ export const updateUserProfile = async (userId, profileData, yearsAhead = 2) => 
       howManyChildren !== undefined ? howManyChildren : 0,
       areYouPregnant !== undefined ? areYouPregnant : 0,
       pregnancyDetail !== undefined ? pregnancyDetail : null,
+      countryId !== undefined ? countryId : null,
+      stateId !== undefined ? stateId : null,
+      cityId !== undefined ? cityId : null,
       image !== undefined ? image : null,
       userId
     ];
@@ -212,15 +221,18 @@ export const getUserProfile = async (userId) => {
         ${USER_FIELDS.HOW_MANY_CHILDREN},
         ${USER_FIELDS.ARE_YOU_PREGNANT},
         ${USER_FIELDS.PREGNANCY_DETAIL},
+        ${USER_FIELDS.COUNTRY_ID},
+        ${USER_FIELDS.STATE_ID},
+        ${USER_FIELDS.CITY_ID},
         ${USER_FIELDS.PROFILE_COMPLETED},
         ${USER_FIELDS.IMAGE},
         ${USER_FIELDS.CREATED_AT}
       FROM ${USER_TABLE} 
       WHERE ${USER_FIELDS.ID} = ? AND ${USER_FIELDS.IS_ACTIVE} = true
     `;
-    
+
     const result = await query(sql, [userId]);
-    
+
     if (result.length === 0) {
       return {
         success: false,
@@ -229,7 +241,7 @@ export const getUserProfile = async (userId) => {
     }
 
     const user = result[0];
-    
+
     // Add complete image URL if image exists
     if (user.image) {
       user.image = `${BASE_URL}${user.image}`;

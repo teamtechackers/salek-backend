@@ -28,6 +28,9 @@ export const updateProfile = async (req, res) => {
         how_many_children,
         are_you_pregnant,
         pregnancy_detail,
+        country_id,
+        state_id,
+        city_id,
         years_ahead
       } = req.body;
 
@@ -82,6 +85,9 @@ export const updateProfile = async (req, res) => {
         howManyChildren: how_many_children,
         areYouPregnant: are_you_pregnant ? 1 : 0,
         pregnancyDetail: pregnancy_detail,
+        countryId: country_id ? parseInt(country_id) : null,
+        stateId: state_id ? parseInt(state_id) : null,
+        cityId: city_id ? parseInt(city_id) : null,
         image
       };
 
@@ -100,7 +106,7 @@ export const updateProfile = async (req, res) => {
       // Get updated user profile data
       const { getUserProfile } = await import('../../services/user_service.js');
       const userResult = await getUserProfile(actualUserId);
-      
+
       if (!userResult.success) {
         return res.status(500).json({
           success: false,
@@ -151,7 +157,10 @@ export const updateProfileBasic = async (req, res) => {
         do_you_have_children,
         how_many_children,
         are_you_pregnant,
-        pregnancy_detail
+        pregnancy_detail,
+        country_id,
+        state_id,
+        city_id
       } = req.body;
 
       // Get uploaded file path if image was uploaded
@@ -234,6 +243,18 @@ export const updateProfileBasic = async (req, res) => {
         updateFields.push('pregnancy_detail = ?');
         params.push(pregnancy_detail);
       }
+      if (country_id !== undefined) {
+        updateFields.push('country_id = ?');
+        params.push(country_id);
+      }
+      if (state_id !== undefined) {
+        updateFields.push('state_id = ?');
+        params.push(state_id);
+      }
+      if (city_id !== undefined) {
+        updateFields.push('city_id = ?');
+        params.push(city_id);
+      }
       if (image !== undefined) {
         updateFields.push('image = ?');
         params.push(image);
@@ -252,7 +273,7 @@ export const updateProfileBasic = async (req, res) => {
 
       // Import query function
       const { query } = await import('../../config/database.js');
-      
+
       const updateSql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
       const result = await query(updateSql, params);
 
@@ -268,7 +289,7 @@ export const updateProfileBasic = async (req, res) => {
       // Get updated user profile data
       const { getUserProfile } = await import('../../services/user_service.js');
       const userResult = await getUserProfile(actualUserId);
-      
+
       if (!userResult.success) {
         return res.status(500).json({
           success: false,
