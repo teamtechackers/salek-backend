@@ -55,11 +55,25 @@ export const searchLocations = async (req, res) => {
 
 export const getAllCountries = async (req, res) => {
     try {
-        const sql = `SELECT * FROM countries ORDER BY country_name ASC`;
-        const results = await query(sql);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const offset = (page - 1) * limit;
+
+        const countSql = `SELECT COUNT(*) as total FROM countries`;
+        const [{ total }] = await query(countSql);
+
+        const sql = `SELECT * FROM countries ORDER BY country_name ASC LIMIT ? OFFSET ?`;
+        const results = await query(sql, [limit, offset]);
+
         return res.status(200).json({
             success: true,
-            data: results
+            data: results,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         logger.error('Get all countries admin error:', error);
@@ -70,11 +84,25 @@ export const getAllCountries = async (req, res) => {
 export const getStatesByCountryAdmin = async (req, res) => {
     try {
         const { countryId } = req.params;
-        const sql = `SELECT * FROM states WHERE country_id = ? ORDER BY state_name ASC`;
-        const results = await query(sql, [countryId]);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const offset = (page - 1) * limit;
+
+        const countSql = `SELECT COUNT(*) as total FROM states WHERE country_id = ?`;
+        const [{ total }] = await query(countSql, [countryId]);
+
+        const sql = `SELECT * FROM states WHERE country_id = ? ORDER BY state_name ASC LIMIT ? OFFSET ?`;
+        const results = await query(sql, [countryId, limit, offset]);
+
         return res.status(200).json({
             success: true,
-            data: results
+            data: results,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         logger.error('Get states admin error:', error);
@@ -85,11 +113,25 @@ export const getStatesByCountryAdmin = async (req, res) => {
 export const getCitiesByStateAdmin = async (req, res) => {
     try {
         const { stateId } = req.params;
-        const sql = `SELECT * FROM cities WHERE state_id = ? ORDER BY city_name ASC`;
-        const results = await query(sql, [stateId]);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const offset = (page - 1) * limit;
+
+        const countSql = `SELECT COUNT(*) as total FROM cities WHERE state_id = ?`;
+        const [{ total }] = await query(countSql, [stateId]);
+
+        const sql = `SELECT * FROM cities WHERE state_id = ? ORDER BY city_name ASC LIMIT ? OFFSET ?`;
+        const results = await query(sql, [stateId, limit, offset]);
+
         return res.status(200).json({
             success: true,
-            data: results
+            data: results,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         logger.error('Get cities admin error:', error);
