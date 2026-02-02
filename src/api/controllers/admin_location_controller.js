@@ -67,6 +67,36 @@ export const getAllCountries = async (req, res) => {
     }
 };
 
+export const getStatesByCountryAdmin = async (req, res) => {
+    try {
+        const { countryId } = req.params;
+        const sql = `SELECT * FROM states WHERE country_id = ? ORDER BY state_name ASC`;
+        const results = await query(sql, [countryId]);
+        return res.status(200).json({
+            success: true,
+            data: results
+        });
+    } catch (error) {
+        logger.error('Get states admin error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+export const getCitiesByStateAdmin = async (req, res) => {
+    try {
+        const { stateId } = req.params;
+        const sql = `SELECT * FROM cities WHERE state_id = ? ORDER BY city_name ASC`;
+        const results = await query(sql, [stateId]);
+        return res.status(200).json({
+            success: true,
+            data: results
+        });
+    } catch (error) {
+        logger.error('Get cities admin error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 export const triggerGlobalSeed = async (req, res) => {
     try {
         // This is a heavy operation, so we run it asynchronously in the background
