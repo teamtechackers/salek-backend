@@ -1,5 +1,6 @@
 import { query } from '../../config/database.js';
 import logger from '../../config/logger.js';
+import { seedGlobalLocations } from '../../services/master_seeding_service.js';
 
 export const toggleLocationStatus = async (req, res) => {
     try {
@@ -48,6 +49,22 @@ export const searchLocations = async (req, res) => {
         });
     } catch (error) {
         logger.error('Search locations error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+export const triggerGlobalSeed = async (req, res) => {
+    try {
+        // This is a heavy operation, so we run it asynchronously in the background
+        // but return an immediate response to the client
+        seedGlobalLocations().catch(err => logger.error('Background Seeding Error:', err));
+
+        return res.status(202).json({
+            success: true,
+            message: 'Global seeding started in the background. This may take several minutes to complete.'
+        });
+    } catch (error) {
+        logger.error('Trigger global seed error:', error);
         return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
