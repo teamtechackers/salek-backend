@@ -10,6 +10,8 @@ import dashboardRoutes from './api/routes/dashboard_routes.js';
 import dependentsRoutes from './api/routes/dependents_routes.js';
 import relationshipsRoutes from './api/routes/relationships_routes.js';
 import adminRoutes from './api/routes/admin_routes.js';
+import locationRoutes from './api/routes/location_routes.js';
+import adminLocationRoutes from './api/routes/admin_location_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,7 +81,9 @@ app.use('/api/vaccines', vaccinesRoutes);
 app.use('/api/notifications', notificationPermissionsRoutes);
 app.use('/api/dependents', dependentsRoutes);
 app.use('/api/relationships', relationshipsRoutes);
+app.use('/api/admin/locations', adminLocationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/locations', locationRoutes);
 app.use('/api', dashboardRoutes);
 
 // Root endpoint
@@ -135,7 +139,9 @@ app.use((req, res) => {
       vaccines: '/api/vaccines',
       dependents: '/api/dependents',
       relationships: '/api/relationships',
+      locations: '/api/locations',
       admin: '/api/admin',
+      admin_locations: '/api/admin/locations',
       dashboard: '/api'
     }
   });

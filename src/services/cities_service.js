@@ -17,14 +17,16 @@ export const seedCitiesData = async () => {
         INSERT INTO ${CITIES_TABLE} (
           ${CITIES_FIELDS.CITY_ID},
           ${CITIES_FIELDS.CITY_NAME},
-          ${CITIES_FIELDS.COUNTRY_ID}
-        ) VALUES (?, ?, ?)
+          ${CITIES_FIELDS.STATE_ID},
+          ${CITIES_FIELDS.IS_ACTIVE}
+        ) VALUES (?, ?, ?, ?)
       `;
 
       await query(sql, [
         city.city_id,
         city.city_name,
-        city.country_id
+        city.state_id,
+        city.is_active || false
       ]);
     }
 
@@ -36,38 +38,17 @@ export const seedCitiesData = async () => {
   }
 };
 
-export const getAllCities = async () => {
-  try {
-    const sql = `
-      SELECT 
-        c.${CITIES_FIELDS.CITY_ID},
-        c.${CITIES_FIELDS.CITY_NAME},
-        c.${CITIES_FIELDS.COUNTRY_ID},
-        co.country_name
-      FROM ${CITIES_TABLE} c
-      JOIN countries co ON c.${CITIES_FIELDS.COUNTRY_ID} = co.country_id
-      WHERE c.${CITIES_FIELDS.IS_ACTIVE} = true
-      ORDER BY co.country_name, c.${CITIES_FIELDS.CITY_NAME}
-    `;
-    const cities = await query(sql);
-    return { success: true, cities };
-  } catch (error) {
-    logger.error('Error getting cities:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-export const getCitiesByCountry = async (countryId) => {
+export const getCitiesByState = async (stateId) => {
   try {
     const sql = `
       SELECT * FROM ${CITIES_TABLE} 
-      WHERE ${CITIES_FIELDS.COUNTRY_ID} = ? AND ${CITIES_FIELDS.IS_ACTIVE} = true 
+      WHERE ${CITIES_FIELDS.STATE_ID} = ? AND ${CITIES_FIELDS.IS_ACTIVE} = true 
       ORDER BY ${CITIES_FIELDS.CITY_NAME}
     `;
-    const cities = await query(sql, [countryId]);
+    const cities = await query(sql, [stateId]);
     return { success: true, cities };
   } catch (error) {
-    logger.error('Error getting cities by country:', error);
+    logger.error('Error getting cities by state:', error);
     return { success: false, error: error.message };
   }
 };
@@ -77,9 +58,9 @@ export const getCityById = async (cityId) => {
     const sql = `
       SELECT 
         c.*,
-        co.country_name
+        s.state_name
       FROM ${CITIES_TABLE} c
-      JOIN countries co ON c.${CITIES_FIELDS.COUNTRY_ID} = co.country_id
+      JOIN states s ON c.${CITIES_FIELDS.STATE_ID} = s.state_id
       WHERE c.${CITIES_FIELDS.CITY_ID} = ? AND c.${CITIES_FIELDS.IS_ACTIVE} = true
     `;
     const result = await query(sql, [cityId]);
