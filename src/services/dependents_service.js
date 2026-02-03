@@ -26,7 +26,7 @@ export const addDependent = async (dependentData) => {
         ${DEPENDENTS_FIELDS.PREGNANCY_DETAIL},
         ${DEPENDENTS_FIELDS.PROFILE_COMPLETED},
         ${DEPENDENTS_FIELDS.IMAGE}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
