@@ -76,17 +76,31 @@ export const searchLocations = async (req, res) => {
 
 export const getAllCountries = async (req, res) => {
     try {
+        const { search } = req.query;
         const page = parseInt(req.query.page) || 0;
         const limit = parseInt(req.query.limit) || 100;
         const pageNum = Math.max(page, 0);
         const pageSize = Math.max(limit, 1);
         const offset = pageNum * pageSize;
 
-        const countSql = `SELECT COUNT(*) as total FROM countries`;
-        const [{ total }] = await query(countSql);
+        let countSql = `SELECT COUNT(*) as total FROM countries`;
+        let sql = `SELECT * FROM countries`;
+        const params = [];
+        const countParams = [];
 
-        const sql = `SELECT * FROM countries ORDER BY country_name ASC LIMIT ? OFFSET ?`;
-        const results = await query(sql, [pageSize, offset]);
+        if (search) {
+            countSql += ` WHERE country_name LIKE ?`;
+            sql += ` WHERE country_name LIKE ?`;
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm);
+            countParams.push(searchTerm);
+        }
+
+        sql += ` ORDER BY country_name ASC LIMIT ? OFFSET ?`;
+        params.push(pageSize, offset);
+
+        const [{ total }] = await query(countSql, countParams);
+        const results = await query(sql, params);
 
         return res.status(200).json({
             success: true,
@@ -111,17 +125,31 @@ export const getAllCountries = async (req, res) => {
 export const getStatesByCountryAdmin = async (req, res) => {
     try {
         const { countryId } = req.params;
+        const { search } = req.query;
         const page = parseInt(req.query.page) || 0;
         const limit = parseInt(req.query.limit) || 100;
         const pageNum = Math.max(page, 0);
         const pageSize = Math.max(limit, 1);
         const offset = pageNum * pageSize;
 
-        const countSql = `SELECT COUNT(*) as total FROM states WHERE country_id = ?`;
-        const [{ total }] = await query(countSql, [countryId]);
+        let countSql = `SELECT COUNT(*) as total FROM states WHERE country_id = ?`;
+        let sql = `SELECT * FROM states WHERE country_id = ?`;
+        const params = [countryId];
+        const countParams = [countryId];
 
-        const sql = `SELECT * FROM states WHERE country_id = ? ORDER BY state_name ASC LIMIT ? OFFSET ?`;
-        const results = await query(sql, [countryId, pageSize, offset]);
+        if (search) {
+            countSql += ` AND state_name LIKE ?`;
+            sql += ` AND state_name LIKE ?`;
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm);
+            countParams.push(searchTerm);
+        }
+
+        sql += ` ORDER BY state_name ASC LIMIT ? OFFSET ?`;
+        params.push(pageSize, offset);
+
+        const [{ total }] = await query(countSql, countParams);
+        const results = await query(sql, params);
 
         return res.status(200).json({
             success: true,
@@ -146,17 +174,31 @@ export const getStatesByCountryAdmin = async (req, res) => {
 export const getCitiesByStateAdmin = async (req, res) => {
     try {
         const { stateId } = req.params;
+        const { search } = req.query;
         const page = parseInt(req.query.page) || 0;
         const limit = parseInt(req.query.limit) || 100;
         const pageNum = Math.max(page, 0);
         const pageSize = Math.max(limit, 1);
         const offset = pageNum * pageSize;
 
-        const countSql = `SELECT COUNT(*) as total FROM cities WHERE state_id = ?`;
-        const [{ total }] = await query(countSql, [stateId]);
+        let countSql = `SELECT COUNT(*) as total FROM cities WHERE state_id = ?`;
+        let sql = `SELECT * FROM cities WHERE state_id = ?`;
+        const params = [stateId];
+        const countParams = [stateId];
 
-        const sql = `SELECT * FROM cities WHERE state_id = ? ORDER BY city_name ASC LIMIT ? OFFSET ?`;
-        const results = await query(sql, [stateId, pageSize, offset]);
+        if (search) {
+            countSql += ` AND city_name LIKE ?`;
+            sql += ` AND city_name LIKE ?`;
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm);
+            countParams.push(searchTerm);
+        }
+
+        sql += ` ORDER BY city_name ASC LIMIT ? OFFSET ?`;
+        params.push(pageSize, offset);
+
+        const [{ total }] = await query(countSql, countParams);
+        const results = await query(sql, params);
 
         return res.status(200).json({
             success: true,
